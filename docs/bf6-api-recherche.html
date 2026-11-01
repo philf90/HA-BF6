@@ -299,7 +299,7 @@ curl -X POST -H "Content-Type: application/json" \
 <!-- ============ AUFBAU ============ -->
 <section id="aufbau">
   <div class="sec-kopf"><span class="eyebrow">Vorlage philf90/HA-WOW 0.33.9</span><h2>Aufbau nach HA-WOW</h2></div>
-  <p class="sek">Gleiche Dateiaufteilung, gleiche Muster, gleiche Prüfungen. Name und Domain sind ein Vorschlag nach dem Schema von „WoW Charakter“ (<code>wow_character</code>).</p>
+  <p class="sek">Gleiche Dateiaufteilung, gleiche Muster, gleiche Prüfungen. Name und Domain sind festgelegt: „BF6 Spieler“ / <code>bf6_player</code>, nach dem Schema von „WoW Charakter“ (<code>wow_character</code>). Arbeitsbranch ist <code>main</code> wie in HA-WOW.</p>
   <div class="zwei">
     <div class="huelle">
       <div class="kopf"><div class="ik violett"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h7l2 2h9v11H3z"/></svg></div>
@@ -330,7 +330,7 @@ curl -X POST -H "Content-Type: application/json" \
       <div class="kopf"><div class="ik violett"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg></div>
         <div class="tx"><span class="nm">Eckdaten</span><span class="lb">wie in HA-WOW, angepasst an BF6</span></div></div>
       <div class="tbl"><table>
-        <thead><tr><th>Punkt</th><th>HA-WOW</th><th>HA-BF6 (Vorschlag)</th></tr></thead>
+        <thead><tr><th>Punkt</th><th>HA-WOW</th><th>HA-BF6 (festgelegt)</th></tr></thead>
         <tbody>
           <tr><td class="b">Name / Domain</td><td>WoW Charakter / <code>wow_character</code></td><td>BF6 Spieler / <code>bf6_player</code></td></tr>
           <tr><td class="b">manifest.json</td><td><code>integration_type: service</code>, <code>iot_class: cloud_polling</code>, <code>requirements: []</code>, <code>after_dependencies: frontend, http</code></td><td>identisch</td></tr>
@@ -505,7 +505,7 @@ curl -X POST -H "Content-Type: application/json" \
         <div class="zeile"><span class="zn z2">Mirak Valley</span><span class="zw" style="color:var(--amber)">47 %</span><span class="zi">9 Siege · 10 Niederlagen</span><span class="zr">19 Matches</span><div class="spur"><i class="amber" style="width:47.37%"></i></div></div>
         <div class="zeile"><span class="zn z2">Fort Lyndon (REDSEC)</span><span class="zw" style="color:var(--rot)">14 %</span><span class="zi">4 Siege · 24 Niederlagen</span><span class="zr">28 Matches</span><div class="spur"><i class="rot" style="width:14.29%"></i></div></div>
       </div>
-      <div class="fuss">Stufen (Vorschlag): ab 55 % Grün, 45–55 % Amber, darunter Rot. Ausgeblendet: 4 weitere Karten ab 14 Matches zwischen 50 und 64 %. Fort Lyndon und REDSEC sind dedupliziert. · „BF6 Karten“</div>
+      <div class="fuss">Stufen: ab 55 % Grün, 45–55 % Amber, darunter Rot. Ausgeblendet: 4 weitere Karten ab 14 Matches zwischen 50 und 64 %. Fort Lyndon und REDSEC sind dedupliziert. · „BF6 Karten“</div>
     </div></div>
 
     <!-- 5 Modi -->
@@ -599,9 +599,9 @@ days_to_show: 30</pre>
     <div class="huelle">
       <div class="kopf"><div class="ik amber"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17v.5"/></svg></div>
         <div class="tx"><span class="nm">Offene Punkte</span><span class="lb">vor dem Start klären</span></div></div>
+      <div class="uk"><p style="font-size:13.5px;color:var(--label)"><span class="pill p-gruen">entschieden 01.11.2026</span> Name „BF6 Spieler“, Domain <code>bf6_player</code> · Branch <code>main</code> · Winrate-Stufen ab 55 % Grün, 45–55 % Amber, darunter Rot · Akzent Rosé · alle Abweichungen von HA-WOW wie beschrieben</p></div>
       <ul class="liste">
         <li>Rate-Limit und gewünschte Namensnennung im Community-Network-Discord erfragen (nicht öffentlich dokumentiert)</li>
-        <li>Name und Domain festlegen (Vorschlag: „BF6 Spieler“, <code>bf6_player</code>)</li>
         <li><code>/bf6/multiple/</code> statt Einzelabfragen: ein Request für alle Spieler. Offen ist, was bei einem ungültigen Spieler in der Liste passiert. Ungeprüft.</li>
         <li>Einheit von <code>distanceTraveled</code> (in der Spec nicht angegeben)</li>
         <li>Verhalten bei privaten Profilen (<code>visibility</code> ≠ EVERYONE) mit einem echten Konto testen</li>
