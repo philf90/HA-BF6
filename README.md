@@ -80,10 +80,11 @@ ist kein Produkt von EA, DICE oder Community Network. Fragen zur API:
 Automatische Tests laufen gegen Home Assistant 2026.2.3
 (`pytest-homeassistant-custom-component` 0.13.316).
 
-- **0.1.x:** 35 automatische Tests. 0.1.0: Einrichtungsdialog (Anlegen, kein
+- **0.1.x:** 38 automatische Tests. 0.1.0: Einrichtungsdialog (Anlegen, kein
   zweiter Eintrag), Laden und Entladen, Prüfung der PR-Vorlage und
   Konsistenz von Version, README, Versionshinweisen, Übersetzungen und
-  Manifest. Nicht live geprüft.
+  Manifest. Die PR-Prüfung kommt ohne `manifest.json` im Basisstand aus
+  (erster PR). Nicht live geprüft.
 
 ## Tests
 

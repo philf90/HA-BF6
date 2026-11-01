@@ -173,7 +173,15 @@ SENSOR = ["custom_components/bf6_player/sensor.py"]
         ),
         (SENSOR, "0.10.0", "0.11.0", set(), [".github/release-notes/v0.11.0.md fehlt"]),
         (SENSOR, "0.10.0", "0.11.0", {"v0.11.0.md"}, []),
+        # Erster PR: im Basisstand gibt es noch kein manifest.json
+        (SENSOR, None, "0.1.0", {"v0.1.0.md"}, []),
+        (SENSOR, None, "0.1.0", set(), [".github/release-notes/v0.1.0.md fehlt"]),
     ],
 )
 def test_version_rule(files, old, new, notes, expected) -> None:
     assert pruefe_pr.pruefe_version(files, old, new, notes) == expected
+
+
+def test_version_missing_in_base() -> None:
+    """Basisstand ohne manifest.json: keine Ausnahme, sondern None."""
+    assert pruefe_pr._version("4b825dc642cb6eb9a060e54bf8d69288fbee4904") is None

@@ -115,15 +115,23 @@ def pruefe_version(
 
 
 def _version(ref: str | None) -> str | None:
+    """Version aus manifest.json; None, wenn es die Datei im Stand nicht gibt.
+
+    Abweichung von WoW Charakter: Der erste PR legt manifest.json erst an, im
+    Basisstand fehlt sie dann (git show endet mit Fehler).
+    """
     if ref is None:
         text = (ROOT / MANIFEST).read_text(encoding="utf-8")
     else:
-        text = subprocess.run(
+        result = subprocess.run(
             ["git", "show", f"{ref}:{MANIFEST}"],
             capture_output=True,
             text=True,
-            check=True,
-        ).stdout
+            check=False,
+        )
+        if result.returncode != 0:
+            return None
+        text = result.stdout
     return json.loads(text)["version"]
 
 
