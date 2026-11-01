@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="rand" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffb35c"/><stop offset="1" stop-color="#d4570f"/>
+    </linearGradient>
+    <linearGradient id="feld" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34475a"/><stop offset="1" stop-color="#18222e"/>
+    </linearGradient>
+    <linearGradient id="kreuz" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#c7d0da"/>
+    </linearGradient>
+  </defs>
+  <path d="M256 8 L478 66 V250 C478 388 380 466 256 506 C132 466 34 388 34 250 V66 Z" fill="url(#rand)"/>
+  <path d="M256 42 L446 92 V250 C446 368 364 434 256 470 C148 434 66 368 66 250 V92 Z" fill="url(#feld)"/>
+  <g fill="none" stroke="url(#kreuz)" stroke-linecap="round">
+    <circle cx="256" cy="250" r="118" stroke-width="22"/>
+    <circle cx="256" cy="250" r="56" stroke-width="14" opacity="0.85"/>
+    <path d="M256 104 V178 M256 322 V396 M110 250 H184 M328 250 H402" stroke-width="22"/>
+  </g>
+  <circle cx="256" cy="250" r="16" fill="#ff8a2a"/>
+</svg>
