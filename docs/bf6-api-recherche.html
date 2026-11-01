@@ -1,0 +1,539 @@
+<title>BF6 Stats für Home Assistant</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: ein Lese-Strang (max 1080px) mit Abschnittsnavigation; Kartenentwürfe als HA-artige Kacheln im Raster */
+:root{
+  --bg:#f3f4f2; --surface:#ffffff; --surface-2:#e8eae6; --line:#d3d6cf;
+  --fg:#1c2124; --muted:#5b6469; --accent:#c4520e; --accent-soft:#f6e3d6;
+  --ok:#2f7d4f; --ok-soft:#dcefe2; --warn:#a46a00; --warn-soft:#f6ecd2; --bad:#b3362c; --bad-soft:#f6dcd9;
+  --bar:#3e5c6e; --bar-2:#9db0ba;
+  --f-display:"Saira Condensed","Arial Narrow",Arial,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#14181b; --surface:#1c2226; --surface-2:#252c31; --line:#333c42;
+  --fg:#e6e9e7; --muted:#9aa5ab; --accent:#ee8a4a; --accent-soft:#3a2618;
+  --ok:#6cc58f; --ok-soft:#1c3226; --warn:#e2b04a; --warn-soft:#352a12; --bad:#ec7a6f; --bad-soft:#3a1d1a;
+  --bar:#8fb2c6; --bar-2:#45606f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#14181b; --surface:#1c2226; --surface-2:#252c31; --line:#333c42;
+  --fg:#e6e9e7; --muted:#9aa5ab; --accent:#ee8a4a; --accent-soft:#3a2618;
+  --ok:#6cc58f; --ok-soft:#1c3226; --warn:#e2b04a; --warn-soft:#352a12; --bad:#ec7a6f; --bad-soft:#3a1d1a;
+  --bar:#8fb2c6; --bar-2:#45606f; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.6}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:32px 72px}
+h1,h2,h3{font-family:var(--f-display);text-wrap:balance;line-height:1.15;margin:0}
+h1{font-size:clamp(2.1rem,5vw,3.1rem);font-weight:700;letter-spacing:.01em}
+h2{font-size:1.85rem;font-weight:700;letter-spacing:.01em}
+h3{font-size:1.25rem;font-weight:600;letter-spacing:.02em}
+p{margin:0;max-width:68ch}
+a{color:var(--accent)}
+a:focus-visible,button:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+code,.mono{font-family:var(--f-mono);font-size:.86em}
+code{background:var(--surface-2);padding:.08em .35em;border-radius:4px;overflow-wrap:anywhere}
+.eyebrow{font-family:var(--f-mono);font-size:.74rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+.lede{font-size:1.08rem;color:var(--muted)}
+.stack{display:flex;flex-direction:column;gap:14px}
+section{display:flex;flex-direction:column;gap:18px;padding-block:40px 8px;border-top:1px solid var(--line);margin-top:40px}
+header.hero{display:flex;flex-direction:column;gap:14px;padding-bottom:8px}
+.meta{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:.85rem;color:var(--muted)}
+nav.toc{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+nav.toc a{font-family:var(--f-mono);font-size:.78rem;text-decoration:none;color:var(--fg);border:1px solid var(--line);padding:4px 10px;border-radius:999px;background:var(--surface)}
+nav.toc a:hover{border-color:var(--accent);color:var(--accent)}
+
+/* Fazit */
+.verdict{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.vcell{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.vcell .k{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.vcell .v{font-family:var(--f-display);font-size:1.35rem;font-weight:600;line-height:1.2}
+.vcell p{font-size:.9rem;color:var(--muted)}
+
+/* Pills */
+.pill{display:inline-block;font-family:var(--f-mono);font-size:.72rem;padding:2px 8px;border-radius:999px;white-space:nowrap;font-weight:500}
+.p-ok{background:var(--ok-soft);color:var(--ok)}
+.p-warn{background:var(--warn-soft);color:var(--warn)}
+.p-bad{background:var(--bad-soft);color:var(--bad)}
+.p-mute{background:var(--surface-2);color:var(--muted)}
+
+/* Tabellen */
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500;background:var(--surface-2)}
+tr:last-child td{border-bottom:0}
+td.num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.cmp td:first-child{font-weight:600;white-space:nowrap}
+
+/* Hinweise */
+.note{border-left:3px solid var(--accent);background:var(--surface);padding:12px 16px;border-radius:0 8px 8px 0;font-size:.92rem}
+.note.warn{border-color:var(--warn)}
+.note.bad{border-color:var(--bad)}
+.note strong{font-weight:600}
+ul.clean{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:6px;max-width:72ch}
+
+/* Code */
+pre{margin:0;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:12px 14px;overflow-x:auto;font-family:var(--f-mono);font-size:.8rem;line-height:1.55}
+details{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+details summary{cursor:pointer;font-weight:600;font-size:.92rem}
+details[open] summary{margin-bottom:10px}
+
+/* Datenkatalog */
+.cat{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+.catbox{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.catbox h3{font-size:1.1rem}
+.catbox .src{font-family:var(--f-mono);font-size:.72rem;color:var(--muted)}
+.catbox ul{margin:0;padding-left:1em;font-size:.86rem;display:flex;flex-direction:column;gap:3px}
+
+/* HA-Kartenentwürfe */
+.board{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:14px;align-items:start}
+.hacard{background:var(--surface);border-radius:12px;box-shadow:0 1px 2px rgba(0,0,0,.06),0 2px 10px rgba(0,0,0,.05);border:1px solid var(--line);padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.hacard .ct{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.hacard .ct h3{font-size:1.15rem}
+.hacard .tag{font-family:var(--f-mono);font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.prof{display:flex;gap:14px;align-items:center}
+.rank{width:58px;height:58px;flex:none;border-radius:10px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-family:var(--f-display);font-weight:700;font-size:1.6rem}
+.prof .nm{font-family:var(--f-display);font-size:1.4rem;font-weight:700;line-height:1.1}
+.prof .rk{font-size:.85rem;color:var(--muted)}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.kpi{background:var(--surface-2);border-radius:8px;padding:8px 10px;min-width:0}
+.kpi .l{font-family:var(--f-mono);font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.kpi .n{font-family:var(--f-display);font-size:1.45rem;font-weight:600;font-variant-numeric:tabular-nums;line-height:1.2}
+.bars{display:flex;flex-direction:column;gap:9px}
+.brow{display:grid;grid-template-columns:minmax(118px,40%) 1fr auto;gap:10px;align-items:center;font-size:.85rem}
+.brow .lab{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brow .lab small{display:block;color:var(--muted);font-size:.72rem}
+.track{height:10px;background:var(--surface-2);border-radius:5px;overflow:hidden}
+.fill{height:100%;background:var(--bar);border-radius:5px}
+.fill.acc{background:var(--accent)}
+.brow .val{font-variant-numeric:tabular-nums;font-family:var(--f-mono);font-size:.8rem;text-align:right;min-width:5.5ch}
+.stackbar{display:flex;height:16px;border-radius:6px;overflow:hidden;gap:2px}
+.stackbar span{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.8rem;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.mini td,.mini th{padding:6px 8px}
+.cardnote{font-size:.76rem;color:var(--muted);border-top:1px dashed var(--line);padding-top:8px}
+.wl{font-variant-numeric:tabular-nums}
+
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.two>*{min-width:0}
+.steps{counter-reset:s;display:flex;flex-direction:column;gap:10px;margin:0;padding:0;list-style:none}
+.steps li{counter-increment:s;display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start}
+.steps li::before{content:counter(s);font-family:var(--f-display);font-weight:700;font-size:1.1rem;width:28px;height:28px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center}
+.src-list{font-size:.86rem;display:flex;flex-direction:column;gap:6px;padding-left:1.1em;margin:0}
+.src-list a{overflow-wrap:anywhere}
+footer{margin-top:48px;font-size:.8rem;color:var(--muted)}
+@media (max-width:520px){.kpis{grid-template-columns:repeat(2,1fr)} h2{font-size:1.55rem}}
+@media (prefers-reduced-motion:no-preference){.fill{transition:width .4s ease}}
+</style>
+
+<div class="wrap">
+
+<header class="hero">
+  <span class="eyebrow">Machbarkeitsstudie · Home Assistant Custom Integration · Stand 01.11.2026</span>
+  <h1>Battlefield 6 Spielerstatistiken in Home Assistant</h1>
+  <p class="lede">Welche Datenquellen es gibt, was sie liefern und wie eine Integration samt Dashboard-Karten aussehen kann. Alle Aussagen zur gametools-API habe ich am 01.11.2026 mit echten Abfragen gegen die Live-API geprüft. Was nicht verifiziert ist, ist als solches markiert.</p>
+  <nav class="toc" aria-label="Abschnitte">
+    <a href="#fazit">Fazit</a><a href="#quellen">Datenquellen</a><a href="#gametools">gametools-API</a><a href="#fallstricke">Fallstricke</a><a href="#daten">Datenkatalog</a><a href="#architektur">Architektur</a><a href="#karten">Karten</a><a href="#plan">Umsetzung</a><a href="#belege">Quellen</a>
+  </nav>
+</header>
+
+<section id="fazit" style="border-top:0;margin-top:8px;padding-top:16px">
+  <h2>Fazit in einem Absatz</h2>
+  <p>Eine offizielle, öffentlich dokumentierte Stats-API von EA/DICE für Battlefield 6 habe ich nicht gefunden. Die einzige frei nutzbare, maschinenlesbare und dokumentierte Quelle ist die Community-API <strong>api.gametools.network</strong>. Sie braucht keinen API-Key und liefert sehr detaillierte Werte: Gesamtwerte, 48 Waffen, 18 Fahrzeuge, 39 Gadgets, Klassen, Karten, Modi, Saisonwerte sowie Rang und Abzeichen. Bis zu 128 Spieler gehen in einen einzigen Request. Das Risiko liegt in der Abhängigkeit: Der Dienst ist inoffiziell, ohne SLA und ohne veröffentlichte Rate-Limits. Für eine Home-Assistant-Integration reicht das aus, wenn sie defensiv pollt (15 Minuten oder länger) und Ausfälle sauber behandelt.</p>
+  <div class="verdict">
+    <div class="vcell"><span class="k">Empfohlene Quelle</span><span class="v">api.gametools.network</span><p>Kein Key, OpenAPI-Spec, BF6-Endpunkte live getestet (HTTP 200, 0,8–1,7 s).</p></div>
+    <div class="vcell"><span class="k">Benötigt</span><span class="v">Spielername + Plattform</span><p>Intern danach immer <code>playerid</code> + <code>nucleus_id</code> + <code>platform</code> speichern, weil Namen mehrdeutig sind.</p></div>
+    <div class="vcell"><span class="k">Polling</span><span class="v">≥ 10 min, empfohlen 15–30 min</span><p>Cloudflare cacht Antworten 600 s (<code>cache-control: max-age=600</code>, beobachtet <code>cf-cache-status: HIT</code>).</p></div>
+    <div class="vcell"><span class="k">Verlauf / Trends</span><span class="v">Selbst speichern</span><p>Für BF6 gibt es keinen Verlaufs-Endpunkt (<code>statsarray</code> existiert nur für BF2042). Den Verlauf liefert der HA-Recorder.</p></div>
+  </div>
+</section>
+
+<section id="quellen">
+  <span class="eyebrow">Vergleich</span>
+  <h2>Welche Datenquellen gibt es?</h2>
+  <div class="tbl">
+  <table class="cmp">
+    <thead><tr><th>Quelle</th><th>BF6-Spielerstats per API</th><th>Zugang</th><th>Bewertung</th></tr></thead>
+    <tbody id="cmp-body">
+      <tr><td>api.gametools.network</td><td><span class="pill p-ok">ja</span> /bf6/stats, /multiple, /profile, /player</td><td>Frei, kein Key. Betreiber: Community Network (GitHub-Org <code>community-network</code>)</td><td><span class="pill p-ok">empfohlen</span> Einzige verifizierte öffentliche JSON-API für BF6</td></tr>
+      <tr><td>Tracker Network (tracker.gg)</td><td><span class="pill p-bad">nein</span> nur Website <code>tracker.gg/bf6</code></td><td>Developer-API mit Header <code>TRN-Api-Key</code>, offiziell nur Apex, The Division 2, CS:GO, Splitgate</td><td><span class="pill p-bad">ungeeignet</span> In Issue #102 „Battlefield 6 API Support“ (geschlossen am 18.04.2026) heißt es: „We are unable to offer Battlefield apis.“ Laut robots.txt ist das Scrapen von Profilseiten ausgeschlossen.</td></tr>
+      <tr><td>EA / DICE offiziell</td><td><span class="pill p-bad">nein</span> keine öffentliche API gefunden</td><td>Nur die Webseite <code>ea.com/…/battlefield-6/player-stats</code> (HTTP 200), für Menschen gedacht</td><td><span class="pill p-bad">ungeeignet</span> Kein dokumentierter Zugang</td></tr>
+      <tr><td>Santiago-gRPC-Backend (direkt)</td><td><span class="pill p-warn">technisch ja</span></td><td>Undokumentiert, per Reverse Engineering aus portal.battlefield.com gefunden (<code>community-network/bfportal-grpc-bf6</code>). Benötigt EA-Login-Cookies <code>sid</code>/<code>remid</code></td><td><span class="pill p-bad">nicht empfohlen</span> EA-Konto-Cookies in HA, Konflikt mit EA-Nutzungsbedingungen</td></tr>
+      <tr><td>Overwolf „Battlefield Companion“, weitere Community-Tracker</td><td><span class="pill p-mute">keine eigene API</span></td><td>Overwolf: In-Game-App ohne Export. Die gefundenen Open-Source-Tracker auf GitHub nutzen selbst gametools.</td><td><span class="pill p-mute">keine Alternative</span></td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="note warn"><strong>Rechtliche Einordnung:</strong> Laut EA User Agreement darf man Daten aus EA-Diensten nur mit ausdrücklicher Erlaubnis von EA extrahieren („unless expressly authorized by EA“). gametools bezieht seine BF6-Daten nach eigener Angabe aus den EA/DICE-Systemen. Eine Erlaubnis von EA dafür habe ich nicht gefunden, ebenso wenig Nutzungsbedingungen von gametools. Die Integration greift selbst nur auf die öffentliche gametools-API zu, nicht auf EA, und braucht keine EA-Zugangsdaten. Trotzdem sollte die Doku klar sagen, dass sie inoffiziell ist, und gametools als Quelle nennen (Discord- und Sponsor-Link).</div>
+  <div class="note"><strong>Bestehende HA-Integrationen:</strong> Auf GitHub und im HA-Forum habe ich keine Home-Assistant-Integration für Battlefield-Stats gefunden, weder für BF1, BFV, 2042 noch BF6, und auch keine, die gametools nutzt. Als Muster für Aufbau und Re-Auth-Flow eignet sich die Fortnite-Integration <code>michaellunzer/Home-Assistant-Custom-Component-Fortnite</code>.</div>
+</section>
+
+<section id="gametools">
+  <span class="eyebrow">Hauptquelle · live geprüft</span>
+  <h2>api.gametools.network im Detail</h2>
+  <p>Die API wird vom Projekt <em>Community Network</em> betrieben. Laut ihrer eigenen OpenAPI-Beschreibung (Version 1.3.0) kommen die Daten für neuere Titel aus den Systemen von EA/DICE („All other titles are still managed by EA/Dice“). Die Spezifikation liegt unter <code>/openapi.json</code>, die Swagger-Oberfläche unter <code>/docs</code>.</p>
+
+  <h3>Relevante BF6-Endpunkte</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Endpunkt</th><th>Zweck</th><th>Getestet</th><th>Für die Integration</th></tr></thead>
+    <tbody>
+      <tr><td><code>GET /bf6/player/</code></td><td>Spielersuche nach Name. Liefert <code>personaId</code>, <code>nucleusId</code>, <code>platform</code>, <code>createdAt</code>, <code>visibility</code>. Parameter <code>limit</code> 1–100.</td><td><span class="pill p-ok">200</span></td><td>Config-Flow: Konto auswählen</td></tr>
+      <tr><td><code>GET /bf6/stats/</code></td><td>Komplette Statistik eines Spielers. Parameter: <code>name</code> oder <code>playerid</code>+<code>nucleus_id</code>, <code>platform</code>, <code>format_values</code>, <code>seperation</code>, <code>categories</code>, <code>filter</code>, <code>lang</code>.</td><td><span class="pill p-ok">200</span></td><td>Einzelabruf, Diagnose</td></tr>
+      <tr><td><code>POST /bf6/multiple/</code></td><td>Statistik für bis zu 128 Spieler in einem Request. Body: <code>[{"player_id","user_id","platform"}]</code>.</td><td><span class="pill p-ok">200</span></td><td>Standard-Abruf für alle Spieler</td></tr>
+      <tr><td><code>GET /bf6/profile/</code></td><td>Rang (<code>playerCard.rank</code>, <code>rankName</code>, Rang-Bild), Dog Tags, Abzeichen, Ranked-Rang (z.&nbsp;B. „Redsec Quads“).</td><td><span class="pill p-ok">200</span></td><td>Rang-Sensor, Bild-Entität</td></tr>
+      <tr><td><code>GET /bf6/gameevents/</code></td><td>Aktive Events, z.&nbsp;B. <code>Season5</code> mit Start/Ende (13.10.2026 – 19.01.2027) und Battle Pass.</td><td><span class="pill p-ok">200</span></td><td>Optional: Saison-Countdown</td></tr>
+      <tr><td><code>GET /bf6/pastseasons/</code></td><td>Abgeschlossene Saisons mit Zeiträumen (Season 1–4, Competitive 3–4).</td><td><span class="pill p-ok">200</span></td><td>Optional</td></tr>
+      <tr><td><code>GET /bf6/status/</code></td><td>Aktuelle Server- und Spielerzahlen der <em>Portal</em>-Server, nach Region, Karte, Modus und Plattform.</td><td><span class="pill p-ok">200</span></td><td>Optional: globaler Sensor</td></tr>
+      <tr><td><code>GET /bf6/statusarray/</code></td><td>Stündlicher Verlauf der Portal-Server/-Spieler, maximal 30 Tage.</td><td><span class="pill p-mute">nur Spec</span></td><td>Nicht nötig</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Gemessene Eckdaten</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Merkmal</th><th>Beobachtung am 01.11.2026</th></tr></thead>
+    <tbody>
+      <tr><td>Authentifizierung</td><td>Keine. Weder Key noch Header nötig.</td></tr>
+      <tr><td>Antwortzeit</td><td>0,8–1,7 s ohne Cache (<code>x-process-time: 0.9581</code>), sofort bei Cache-Treffer</td></tr>
+      <tr><td>Caching</td><td><code>cache-control: public, max-age=600</code>. Eine Wiederholungsabfrage lieferte <code>cf-cache-status: HIT</code>, <code>age: 35</code>. Häufigeres Pollen als alle 10 min bringt also keine neueren Daten.</td></tr>
+      <tr><td>Rate-Limit-Header</td><td>Keine (<code>X-RateLimit-*</code> / <code>Retry-After</code> fehlen). Ein offizielles Limit habe ich nicht gefunden. → Limit vor der Veröffentlichung im Community-Network-Discord erfragen</td></tr>
+      <tr><td>Antwortgröße</td><td>28–33 KB pro Spieler ohne <code>seperation</code>, rund 476 KB mit <code>seperation=true</code> (Aufschlüsselung nach Modus und Saison)</td></tr>
+      <tr><td>Plattformen</td><td><code>ea, xbox, psn, steam, epic, pc, xboxone, ps4, xboxseries, ps5</code>. Laut Spec gelten <code>ea/xbox/psn/steam/epic</code> für die Stats als dieselbe Plattform (Crossplay-Konto).</td></tr>
+      <tr><td>Fehlerbilder</td><td>Unbekannter Name: HTTP 404 <code>{"errors":["Player not found"]}</code>. Nur <code>playerid</code> ohne <code>nucleus_id</code>: HTTP 500 „Internal Server Error“.</td></tr>
+    </tbody>
+  </table></div>
+
+  <details>
+    <summary>Beispielabfragen (so getestet)</summary>
+<pre># 1) Konto suchen
+curl "https://api.gametools.network/bf6/player/?name=LevelCap&amp;limit=10"
+
+# 2) Stats per ID (eindeutig), Prozentwerte als Zahl statt "50%"
+curl "https://api.gametools.network/bf6/stats/?playerid=1005011571170&amp;nucleus_id=2395371170&amp;platform=steam&amp;format_values=false"
+
+# 3) Mehrere Spieler in einem Request (max. 128)
+curl -X POST -H "Content-Type: application/json" \
+  "https://api.gametools.network/bf6/multiple/?format_values=false" \
+  -d '[{"player_id":794397421,"user_id":2800753812,"platform":"pc"},
+       {"player_id":1005011571170,"user_id":2395371170,"platform":"steam"}]'
+
+# 4) Rang, Abzeichen, Dog Tags
+curl "https://api.gametools.network/bf6/profile/?playerid=1005011571170&amp;nucleus_id=2395371170&amp;platform=steam"</pre>
+  </details>
+</section>
+
+<section id="fallstricke">
+  <span class="eyebrow">Beim Testen gefunden</span>
+  <h2>Fallstricke, die die Integration abfangen muss</h2>
+  <div class="stack">
+    <div class="note bad"><strong>Namen sind nicht eindeutig.</strong> Die Suche nach „LevelCap“ liefert zwei Steam-Konten (personaId 1008284609428 von 2025 und 1005011571170 von 2020). <code>/bf6/stats/?name=LevelCap&amp;platform=steam</code> löste auf das zweite Konto auf (6.704 Kills, 207 Matches), die ID-Abfrage des ersten ergab ein anderes Konto (314 Kills, 25 Matches). Deshalb muss der Nutzer im Config-Flow das Konto aus einer Trefferliste wählen. Gespeichert werden dann nur die IDs.</div>
+    <div class="note warn"><strong>Nur Name statt ID bei falscher Plattform.</strong> <code>name=LevelCap&amp;platform=pc</code> ergab 404, mit <code>platform=steam</code> klappte es. Die Plattform aus der Suche (<code>platform</code>-Feld) wird deshalb übernommen und nicht vom Nutzer geraten.</div>
+    <div class="note warn"><strong>Prozentwerte sind standardmäßig Strings.</strong> Ohne <code>format_values=false</code> kommen Werte wie <code>"50%"</code>. Für numerische Sensoren ist der Parameter Pflicht.</div>
+    <div class="note warn"><strong>Unterschiedliche Zeitbasen.</strong> <code>killsPerMinute</code> oben = 1,55 (6.704 Kills / 259.279 s), <code>classes[All].kpm</code> = 1,96 (Basis 204.863 s). Ebenso: <code>matchesPlayed</code> = 207, <code>maps[All].matches</code> = 201. Die Integration sollte KPM, K/D und Winrate selbst aus den Rohzählern berechnen und dokumentieren, welche Basis sie nutzt.</div>
+    <div class="note warn"><strong>Bots verzerren Werte.</strong> BF6 hat Modi mit KI-Gegnern. Das Feld <code>humanPrecentage</code> (sic) zeigt den Anteil der Kills gegen Menschen: 68,66 % = 4.603 von 6.704. Es lohnt sich, diesen Anteil als eigenen Sensor anzubieten.</div>
+    <div class="note warn"><strong>Doppelte Karten, unvollständige Saisons.</strong> „Fort Lyndon“ und „REDSEC“ tragen identische Werte (28 Matches, 14,29 %), sie müssen also dedupliziert werden. <code>perSeason</code> enthielt beim Test nur <code>Season1</code>, obwohl laut <code>/pastseasons/</code> Season 1–4 abgeschlossen sind. Saisonwerte deshalb nur als „sofern geliefert“ behandeln.</div>
+    <div class="note"><strong>Inkonsistente Feldnamen.</strong> <code>loses</code>, <code>devidedDamage</code>, <code>gadgetsDestoyed</code>, <code>seperation</code>. Außerdem bedeuten <code>headShots</code> (Anzahl, 973) und <code>headshots</code> (Quote in %, 14,51) unterschiedliche Dinge. Das Mapping gehört in eine zentrale, getestete Parser-Schicht.</div>
+  </div>
+</section>
+
+<section id="daten">
+  <span class="eyebrow">Was abrufbar ist</span>
+  <h2>Datenkatalog</h2>
+  <p>Felder aus echten Antworten von <code>/bf6/stats/</code> und <code>/bf6/profile/</code>. Die Mengenangaben in Klammern stammen vom getesteten Konto mit 207 Matches. Andere Konten können weniger Einträge haben.</p>
+  <div class="cat">
+    <div class="catbox"><h3>Kernwerte</h3><span class="src">/bf6/stats/ · Top-Level</span><ul>
+      <li>kills, deaths, assists, killAssists, killDeath, infantryKillDeath</li>
+      <li>killsPerMinute, damagePerMinute, killsPerMatch, damagePerMatch</li>
+      <li>wins, loses, winPercent, matchesPlayed</li>
+      <li>secondsPlayed, timePlayed (Text), score</li>
+      <li>XP: total, performance, accolades</li>
+      <li>accuracy, shotsFired, shotsHit, headShots, headshots %</li></ul></div>
+    <div class="catbox"><h3>Teamplay &amp; Objective</h3><span class="src">/bf6/stats/ · Top-Level + objective</span><ul>
+      <li>revives, squadmateRevive, heals, resupplies, repairs</li>
+      <li>enemiesSpotted, saviorKills</li>
+      <li>objective.time (total/attacked/defended in s)</li>
+      <li>objective.captured, neutralized, armed, defused, destroyed</li>
+      <li>sector.captured</li></ul></div>
+    <div class="catbox"><h3>Kampfstil</h3><span class="src">dividedKills · devidedDamage · devidedAssists</span><ul>
+      <li>Kills: ads, hipfire, longDistance, melee, multiKills, grenades, vehicle, roadkills, parachute, human</li>
+      <li>Kills je Waffenart (AR, SMG, LMG, MG, DMR, Snipers, Shotguns, Pistols)</li>
+      <li>humanPrecentage, vehiclesDestroyed, gadgetsDestoyed</li>
+      <li>distanceTraveled: foot, passenger, vehicle (Einheit in der Spec nicht angegeben)</li></ul></div>
+    <div class="catbox"><h3>Waffen (48) · Gruppen (9)</h3><span class="src">weapons[] · weaponGroups[]</span><ul>
+      <li>weaponName, type, kills, damage, accuracy, headshots %, killsPerMinute</li>
+      <li>hipfireKills, scopedKills, multiKills, shotsFired/Hit, timeEquipped</li>
+      <li>image (cdn.gametools.network), id, translationId</li></ul></div>
+    <div class="catbox"><h3>Fahrzeuge (18) · Gadgets (39)</h3><span class="src">vehicles[] · vehicleArchetypes[] · gadgets[] · melee[]</span><ul>
+      <li>Fahrzeug: kills, damage, timeIn, distanceTraveled, destroyed, roadKills</li>
+      <li>Archetypen, z.&nbsp;B. „Main battle tank“ (10 Stück)</li>
+      <li>Gadgets: kills, uses, repairs, spots, damage</li></ul></div>
+    <div class="catbox"><h3>Klassen · Karten · Modi</h3><span class="src">classes[] · maps[] · gameModes[] · gameModeGroups[]</span><ul>
+      <li>Klassen (Assault, Engineer, Support, Recon): kills, deaths, K/D, kpm, score, revives, secondsPlayed</li>
+      <li>Karten (14 inkl. „All“): wins, losses, matches, winPercent, secondsPlayed</li>
+      <li>Modi (13): K/D, winPercent, matches, Objective-Werte; Gruppen Multiplayer / Redsec / Battle Royale</li></ul></div>
+    <div class="catbox"><h3>Separiert (optional)</h3><span class="src">seperation=true · perSeason · perGamemode · perGameType</span><ul>
+      <li>Komplette Kennzahlen je Modus und je Saison</li>
+      <li>Antwort rund 15-mal größer (476 KB statt 33 KB)</li>
+      <li>perGameType.competitive war beim Test leer</li></ul></div>
+    <div class="catbox"><h3>Profil</h3><span class="src">/bf6/profile/</span><ul>
+      <li>playerCard.rank (z.&nbsp;B. 84), rankName („Chief Warrant Officer“), Rang-Bild small/large</li>
+      <li>totalDogTags, badgeSummary (Anzahl, Tiers)</li>
+      <li>competitiveRanks (Saison, Modus, Rangname)</li>
+      <li>Rohstat-Liste mit „inround/inlife“-Bestwerten (Rekorde je Runde)</li></ul></div>
+    <div class="catbox"><h3>Global (nicht spielerbezogen)</h3><span class="src">/bf6/status/ · /bf6/gameevents/</span><ul>
+      <li>Portal-Server und Spieler nach Region, Karte, Modus, Plattform</li>
+      <li>Aktive Saison und Battle Pass mit Laufzeit</li>
+      <li>Hinweis: <code>status</code> zählt nur Portal-Server, nicht die offiziellen Playlists (laut Endpunktbeschreibung)</li></ul></div>
+  </div>
+  <div class="note"><strong>Nicht vorhanden:</strong> Match-Historie (einzelne Runden mit Zeitstempel), Live-Status („spielt gerade“) und ein Verlauf der Spielerwerte für BF6. Session-Auswertungen muss die Integration aus Deltas zwischen zwei Abrufen ableiten.</div>
+</section>
+
+<section id="architektur">
+  <span class="eyebrow">Vorschlag</span>
+  <h2>Architektur der Integration</h2>
+  <div class="two">
+    <div class="stack">
+      <h3>Aufbau</h3>
+      <ol class="steps">
+        <li><div><strong>Config-Flow:</strong> Name eingeben → <code>/bf6/player/</code> → Nutzer wählt Konto (Name, Plattform, Erstellungsdatum) → gespeichert werden <code>personaId</code>, <code>nucleusId</code>, <code>platform</code>. Mehrere Spieler über Subentries oder Options-Flow.</div></li>
+        <li><div><strong>Ein <code>DataUpdateCoordinator</code></strong> pro Config-Entry ruft alle Spieler gebündelt über <code>POST /bf6/multiple/</code> ab, also ein Request pro Intervall. Das Profil (Rang) kommt seltener, z.&nbsp;B. stündlich.</div></li>
+        <li><div><strong>Parser-Schicht</strong> normalisiert Feldnamen und berechnet K/D, KPM und Winrate aus den Rohzählern. Sie dedupliziert Karten und filtert „All“-Einträge.</div></li>
+        <li><div><strong>Plattformen:</strong> <code>sensor</code> (Kennzahlen), <code>image</code> (Rang-Abzeichen), <code>event</code> („Match beendet“, abgeleitet aus Delta von <code>matchesPlayed</code>), dazu <code>diagnostics</code>.</div></li>
+        <li><div><strong>Robustheit:</strong> <code>aiohttp</code>-Session von HA, Timeout etwa 30 s, bei Fehlern <code>UpdateFailed</code> und Backoff. 404 löst einen Repair-Hinweis aus („Konto nicht gefunden / privat?“).</div></li>
+      </ol>
+    </div>
+    <div class="stack">
+      <h3>Entitäten pro Spieler (Vorschlag)</h3>
+      <div class="tbl"><table class="mini">
+        <thead><tr><th>Entität</th><th>Einheit / Klasse</th></tr></thead>
+        <tbody>
+          <tr><td>Kills, Deaths, Assists, Revives</td><td><code>total_increasing</code></td></tr>
+          <tr><td>Matches, Siege, Niederlagen</td><td><code>total_increasing</code></td></tr>
+          <tr><td>Spielzeit</td><td>duration · h · <code>total_increasing</code></td></tr>
+          <tr><td>K/D, KPM, DPM</td><td><code>measurement</code></td></tr>
+          <tr><td>Winrate, Accuracy, Headshot-Quote, Human-Kill-Anteil</td><td>% · <code>measurement</code></td></tr>
+          <tr><td>Rang (Zahl), XP</td><td><code>measurement</code> / <code>total_increasing</code></td></tr>
+          <tr><td>Rangname, Top-Waffe, Top-Fahrzeug, beste Klasse, Lieblingskarte</td><td>Text (ohne state_class)</td></tr>
+          <tr><td>Rang-Abzeichen</td><td><code>image</code>-Entität</td></tr>
+          <tr><td>Match beendet</td><td><code>event</code>-Entität (abgeleitet)</td></tr>
+        </tbody>
+      </table></div>
+      <div class="note warn"><strong>Recorder-Grenze beachten:</strong> HA speichert Attribute über 16 KB nicht in der Datenbank. Komplette Waffen- und Fahrzeuglisten gehören deshalb nicht als Attribut an einen Sensor. Besser: Top-N als Attribut, mit <code>_unrecorded_attributes</code> von der Historie ausgeschlossen, oder die volle Liste nur für eine eigene Lovelace-Karte über einen WebSocket-Befehl bereitstellen.</div>
+    </div>
+  </div>
+  <div class="note"><strong>Trends:</strong> Weil die API keinen Verlauf liefert, entstehen Trends über die Long-Term Statistics von HA. Mit <code>state_class</code> zeichnet HA Stundenwerte dauerhaft auf. Die Standardkarte <code>statistics-graph</code> zeigt dann z.&nbsp;B. Kills pro Tag oder den K/D-Verlauf über Wochen. Der Verlauf beginnt mit der Installation.</div>
+</section>
+
+<section id="karten">
+  <span class="eyebrow">Entwürfe</span>
+  <h2>So können die Karten aussehen</h2>
+  <p>Die Entwürfe zeigen <strong>echte API-Werte</strong> des öffentlichen Kontos des Battlefield-YouTubers LevelCap (Steam, personaId 1005011571170), abgerufen am 01.11.2026, zum Vergleich das Beispielkonto aus der API-Dokumentation (iiTzArcur). Balkenlängen sind maßstabsgetreu. Externe Bilder (Waffen-Icons, Rang-Abzeichen von <code>cdn.gametools.network</code>) liefert die API mit. Hier sind sie aus technischen Gründen nur als Platzhalter dargestellt.</p>
+
+  <div class="board">
+
+    <!-- 1 Profil -->
+    <div class="hacard">
+      <div class="ct"><h3>Spieler-Übersicht</h3><span class="tag">Custom Card</span></div>
+      <div class="prof"><div class="rank" aria-label="Rang 84">84</div><div><div class="nm">LevelCap</div><div class="rk">Chief Warrant Officer · Steam · 37 Dog Tags</div></div></div>
+      <div class="kpis">
+        <div class="kpi"><div class="l">K/D</div><div class="n">3,52</div></div>
+        <div class="kpi"><div class="l">KPM</div><div class="n">1,55</div></div>
+        <div class="kpi"><div class="l">Winrate</div><div class="n">61,8 %</div></div>
+        <div class="kpi"><div class="l">Accuracy</div><div class="n">30,1 %</div></div>
+        <div class="kpi"><div class="l">Matches</div><div class="n">207</div></div>
+        <div class="kpi"><div class="l">Spielzeit</div><div class="n">72 h</div></div>
+      </div>
+      <div class="legend"><span>6.704 Kills</span><span>1.903 Deaths</span><span>657 Revives</span><span>14,5 % Headshots</span></div>
+      <div class="cardnote">Alternative ohne eigenes JS: <code>tile</code>-Karten oder Mushroom-Chips im <code>grid</code>.</div>
+    </div>
+
+    <!-- 2 Waffen -->
+    <div class="hacard">
+      <div class="ct"><h3>Top-Waffen</h3><span class="tag">Kills · Accuracy</span></div>
+      <div class="bars">
+        <div class="brow"><span class="lab">DRS-IAR<small>Machine Gun</small></span><div class="track"><div class="fill acc" style="width:100%"></div></div><span class="val">630</span></div>
+        <div class="brow"><span class="lab">M417 A2<small>Carbine</small></span><div class="track"><div class="fill" style="width:85.1%"></div></div><span class="val">536</span></div>
+        <div class="brow"><span class="lab">L110<small>Machine Gun</small></span><div class="track"><div class="fill" style="width:73.5%"></div></div><span class="val">463</span></div>
+        <div class="brow"><span class="lab">M4A1<small>Carbine</small></span><div class="track"><div class="fill" style="width:56.3%"></div></div><span class="val">355</span></div>
+        <div class="brow"><span class="lab">M433<small>Assault Rifle</small></span><div class="track"><div class="fill" style="width:54.6%"></div></div><span class="val">344</span></div>
+      </div>
+      <div class="tbl"><table class="mini"><thead><tr><th>Waffe</th><th class="num">Acc.</th><th class="num">HS</th><th class="num">KPM</th></tr></thead><tbody>
+        <tr><td>DRS-IAR</td><td class="num">23,3 %</td><td class="num">14,3 %</td><td class="num">2,21</td></tr>
+        <tr><td>M417 A2</td><td class="num">21,2 %</td><td class="num">11,0 %</td><td class="num">1,49</td></tr>
+        <tr><td>L110</td><td class="num">21,3 %</td><td class="num">10,6 %</td><td class="num">2,60</td></tr>
+        <tr><td>M4A1</td><td class="num">22,0 %</td><td class="num">13,2 %</td><td class="num">2,01</td></tr>
+        <tr><td>M433</td><td class="num">26,1 %</td><td class="num">14,5 %</td><td class="num">3,18</td></tr>
+      </tbody></table></div>
+    </div>
+
+    <!-- 3 Klassen -->
+    <div class="hacard">
+      <div class="ct"><h3>Klassen</h3><span class="tag">Spielzeit-Anteil · K/D</span></div>
+      <div class="stackbar" role="img" aria-label="Spielzeitanteile: Support 45 Prozent, Engineer 32,5 Prozent, Recon 12,7 Prozent, Assault 9,8 Prozent">
+        <span style="width:45.0%;background:var(--accent)"></span><span style="width:32.5%;background:var(--bar)"></span><span style="width:12.7%;background:var(--bar-2)"></span><span style="width:9.8%;background:var(--muted)"></span>
+      </div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>Support 45,0 %</span><span><i style="background:var(--bar)"></i>Engineer 32,5 %</span><span><i style="background:var(--bar-2)"></i>Recon 12,7 %</span><span><i style="background:var(--muted)"></i>Assault 9,8 %</span></div>
+      <div class="tbl"><table class="mini"><thead><tr><th>Klasse</th><th class="num">Kills</th><th class="num">K/D</th><th class="num">KPM</th></tr></thead><tbody>
+        <tr><td>Support</td><td class="num">3.123</td><td class="num">3,97</td><td class="num">2,03</td></tr>
+        <tr><td>Engineer</td><td class="num">1.770</td><td class="num">2,52</td><td class="num">1,59</td></tr>
+        <tr><td>Recon</td><td class="num">925</td><td class="num">4,97</td><td class="num">2,14</td></tr>
+        <tr><td>Assault</td><td class="num">886</td><td class="num">3,87</td><td class="num">2,65</td></tr>
+      </tbody></table></div>
+      <div class="cardnote">Anteile = <code>classes[].secondsPlayed</code> / Summe (204.863 s).</div>
+    </div>
+
+    <!-- 4 Karten -->
+    <div class="hacard">
+      <div class="ct"><h3>Winrate nach Karte</h3><span class="tag">≥ 14 Matches</span></div>
+      <div class="bars">
+        <div class="brow"><span class="lab">New Sobek City<small>22 Matches</small></span><div class="track"><div class="fill" style="width:86.36%;background:var(--ok)"></div></div><span class="val">86 %</span></div>
+        <div class="brow"><span class="lab">Siege of Cairo<small>20 Matches</small></span><div class="track"><div class="fill" style="width:75%;background:var(--ok)"></div></div><span class="val">75 %</span></div>
+        <div class="brow"><span class="lab">Iberian Offensive<small>22 Matches</small></span><div class="track"><div class="fill" style="width:72.73%;background:var(--ok)"></div></div><span class="val">73 %</span></div>
+        <div class="brow"><span class="lab">Eastwood<small>14 Matches</small></span><div class="track"><div class="fill" style="width:64.29%"></div></div><span class="val">64 %</span></div>
+        <div class="brow"><span class="lab">Empire State<small>23 Matches</small></span><div class="track"><div class="fill" style="width:60.87%"></div></div><span class="val">61 %</span></div>
+        <div class="brow"><span class="lab">Manhattan Bridge<small>20 Matches</small></span><div class="track"><div class="fill" style="width:60%"></div></div><span class="val">60 %</span></div>
+        <div class="brow"><span class="lab">Liberation Peak<small>23 Matches</small></span><div class="track"><div class="fill" style="width:52.17%"></div></div><span class="val">52 %</span></div>
+        <div class="brow"><span class="lab">Operation Firestorm<small>24 Matches</small></span><div class="track"><div class="fill" style="width:50%"></div></div><span class="val">50 %</span></div>
+        <div class="brow"><span class="lab">Mirak Valley<small>19 Matches</small></span><div class="track"><div class="fill" style="width:47.37%;background:var(--warn)"></div></div><span class="val">47 %</span></div>
+        <div class="brow"><span class="lab">Fort Lyndon (REDSEC)<small>28 Matches</small></span><div class="track"><div class="fill" style="width:14.29%;background:var(--bad)"></div></div><span class="val">14 %</span></div>
+      </div>
+      <div class="cardnote">Fort Lyndon und REDSEC hier dedupliziert. Karten unter 14 Matches ausgeblendet (Saints Quarter 8, Blackwell Fields 6).</div>
+    </div>
+
+    <!-- 5 Modi -->
+    <div class="hacard">
+      <div class="ct"><h3>Spielmodi</h3><span class="tag">Matches · K/D · Win</span></div>
+      <div class="tbl"><table class="mini"><thead><tr><th>Modus</th><th class="num">Matches</th><th class="num">K/D</th><th class="num">Win</th></tr></thead><tbody>
+        <tr><td>Breakthrough</td><td class="num">62</td><td class="num">8,02</td><td class="num">61,3 %</td></tr>
+        <tr><td>Conquest</td><td class="num">54</td><td class="num">3,70</td><td class="num">64,8 %</td></tr>
+        <tr><td>Escalation</td><td class="num">50</td><td class="num">2,37</td><td class="num">56,0 %</td></tr>
+        <tr><td>Redsec Duo</td><td class="num">25</td><td class="num">3,00</td><td class="num">8,0 %</td></tr>
+        <tr><td>Team Deathmatch</td><td class="num">11</td><td class="num">3,35</td><td class="num">72,7 %</td></tr>
+        <tr><td>Rush</td><td class="num">11</td><td class="num">5,30</td><td class="num">81,8 %</td></tr>
+        <tr><td>King of the Hill</td><td class="num">10</td><td class="num">2,33</td><td class="num">70,0 %</td></tr>
+      </tbody></table></div>
+      <div class="cardnote">Weitere Modi mit &lt; 10 Matches (Sabotage, Domination, Squad DM, Gauntlet, Strikepoint) liefert die API ebenfalls. Das hohe K/D in Breakthrough fällt mit einem Human-Kill-Anteil von 36 % in diesem Modus zusammen (<code>perGamemode</code>), es sind also viele Bot-Kills darin.</div>
+    </div>
+
+    <!-- 6 Spielstil -->
+    <div class="hacard">
+      <div class="ct"><h3>Spielstil</h3><span class="tag">aus dividedKills</span></div>
+      <div class="bars">
+        <div class="brow"><span class="lab">Gegen Menschen</span><div class="track"><div class="fill acc" style="width:68.66%"></div></div><span class="val">68,7 %</span></div>
+        <div class="brow"><span class="lab">Über Visier (ADS)</span><div class="track"><div class="fill" style="width:65.42%"></div></div><span class="val">65,4 %</span></div>
+        <div class="brow"><span class="lab">Hüfte</span><div class="track"><div class="fill" style="width:18.02%"></div></div><span class="val">18,0 %</span></div>
+                <div class="brow"><span class="lab">Aus Fahrzeug</span><div class="track"><div class="fill" style="width:13.87%"></div></div><span class="val">13,9 %</span></div>
+        <div class="brow"><span class="lab">Weite Distanz</span><div class="track"><div class="fill" style="width:10.29%"></div></div><span class="val">10,3 %</span></div>
+      </div>
+      <div class="legend"><span>Objective-Zeit 10,4 h</span><span>542 Objectives erobert</span><span>1.071 Multikills</span><span>1.750 Spots</span><span>4.341 Reparaturen</span></div>
+      <div class="cardnote">Anteil jeweils an 6.704 Kills. Die Kategorien überschneiden sich und ergeben deshalb nicht 100 %.</div>
+    </div>
+
+    <!-- 7 Vergleich -->
+    <div class="hacard">
+      <div class="ct"><h3>Squad-Vergleich</h3><span class="tag">mehrere Spieler</span></div>
+      <div class="tbl"><table class="mini"><thead><tr><th>Wert</th><th class="num">LevelCap</th><th class="num">iiTzArcur</th></tr></thead><tbody>
+        <tr><td>K/D</td><td class="num"><strong>3,52</strong></td><td class="num">0,78</td></tr>
+        <tr><td>KPM</td><td class="num"><strong>1,55</strong></td><td class="num">0,26</td></tr>
+        <tr><td>Winrate</td><td class="num"><strong>61,8 %</strong></td><td class="num">33,3 %</td></tr>
+        <tr><td>Accuracy</td><td class="num"><strong>30,1 %</strong></td><td class="num">11,6 %</td></tr>
+        <tr><td>Headshots</td><td class="num">14,5 %</td><td class="num"><strong>18,6 %</strong></td></tr>
+        <tr><td>Matches</td><td class="num">207</td><td class="num">9</td></tr>
+        <tr><td>Rang</td><td class="num">84</td><td class="num">11</td></tr>
+      </tbody></table></div>
+      <div class="cardnote">Ein Request über <code>/bf6/multiple/</code> liefert alle Spieler. Umsetzbar mit <code>flex-table-card</code> oder als eigene Karte.</div>
+    </div>
+
+    <!-- 8 Trend -->
+    <div class="hacard">
+      <div class="ct"><h3>Verlauf &amp; Sessions</h3><span class="tag">Standardkarten</span></div>
+      <p style="font-size:.88rem">Dafür gibt es noch keine Daten, weil sie erst nach der Installation im Recorder entstehen. Konfiguration mit Bordmitteln:</p>
+<pre>type: statistics-graph
+title: Kills pro Tag
+entities:
+  - sensor.bf6_levelcap_kills
+stat_types: [change]
+period: day
+chart_type: bar
+days_to_show: 30</pre>
+<pre>type: statistics-graph
+title: K/D-Verlauf
+entities:
+  - sensor.bf6_levelcap_kd
+stat_types: [mean]
+period: week</pre>
+      <div class="cardnote">Entitäts-IDs sind Vorschläge. Mit <code>apexcharts-card</code> lassen sich mehrere Spieler in einem Diagramm vergleichen.</div>
+    </div>
+
+  </div>
+
+  <h3>Welcher Kartentyp wofür?</h3>
+  <div class="tbl"><table>
+    <thead><tr><th>Ansatz</th><th>Gut für</th><th>Aufwand</th></tr></thead>
+    <tbody>
+      <tr><td>Standardkarten (<code>tile</code>, <code>entities</code>, <code>glance</code>, <code>statistics-graph</code>, <code>markdown</code>)</td><td>KPIs, Verlauf, Rangname, einfache Top-Listen per Markdown-Template</td><td><span class="pill p-ok">gering</span></td></tr>
+      <tr><td>HACS-Karten (<code>flex-table-card</code>, <code>apexcharts-card</code>, <code>mushroom</code>, <code>button-card</code>, <code>mini-graph-card</code>; <code>bar-card</code> seit 09/2023 ohne Push)</td><td>Vergleichstabellen, Balken, schönere Diagramme</td><td><span class="pill p-warn">mittel</span>, Abhängigkeit vom Nutzer</td></tr>
+      <tr><td>Eigene Lovelace-Karte (JS, mit der Integration ausgeliefert)</td><td>Profilkarte mit Rang-Bild, Waffen mit Icons, Karten-Heatmap, Squad-Vergleich, visueller Editor</td><td><span class="pill p-bad">hoch</span>, aber beste UX</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="plan">
+  <span class="eyebrow">Vorgehen</span>
+  <h2>Umsetzungsplan</h2>
+  <div class="two">
+    <ol class="steps">
+      <li><div><strong>API-Client + Parser</strong> (eigenes Python-Modul, async), Fixtures aus echten Antworten, Unit-Tests für das Feld-Mapping</div></li>
+      <li><div><strong>Config-Flow</strong> mit Kontosuche und -auswahl, Options-Flow für Intervall und Spieler, Übersetzungen de/en</div></li>
+      <li><div><strong>Coordinator + Sensoren</strong> mit <code>/bf6/multiple/</code>, Device pro Spieler, <code>state_class</code> für Langzeitstatistik</div></li>
+      <li><div><strong>Image- und Event-Entität</strong> (Rang-Bild, „Match beendet“ aus Delta), Diagnostics mit maskierten IDs</div></li>
+      <li><div><strong>Dashboard-Vorlage</strong> mit Standardkarten (sofort nutzbar), danach eigene Lovelace-Karte</div></li>
+      <li><div><strong>HACS-Veröffentlichung</strong>: <code>hacs.json</code>, <code>manifest.json</code>, GitHub-Release, Validierung per <code>hassfest</code> und HACS-Action</div></li>
+    </ol>
+    <div class="stack">
+      <h3>Risiken</h3>
+      <div class="tbl"><table class="mini"><thead><tr><th>Risiko</th><th>Gegenmaßnahme</th></tr></thead><tbody>
+        <tr><td>gametools fällt aus oder ändert das Format</td><td>Sensoren werden „unavailable“, Parser tolerant, Version im User-Agent, Tests mit Fixtures</td></tr>
+        <tr><td>EA ändert das Backend</td><td>Nicht beeinflussbar, betrifft alle Community-Tools gleichermaßen</td></tr>
+        <tr><td>Kein dokumentiertes Rate-Limit</td><td>Ein gebündelter Request, ≥ 15 min Intervall, Backoff bei 429/5xx</td></tr>
+        <tr><td>Private Profile</td><td>404 erkennen, Repair-Issue statt Fehlerflut im Log</td></tr>
+        <tr><td>Bot-Kills verzerren K/D</td><td>Human-Kill-Anteil als eigener Sensor</td></tr>
+      </tbody></table></div>
+    </div>
+  </div>
+  <div class="note"><strong>Offene Punkte vor dem Start:</strong>
+    <ul class="clean">
+      <li>Rate-Limit und gewünschte Namensnennung im Community-Network-Discord klären (nicht öffentlich dokumentiert)</li>
+      <li>Einheit von <code>distanceTraveled</code> klären (in der Spec nicht angegeben)</li>
+      <li>Verhalten bei privaten Profilen (<code>visibility</code> ≠ EVERYONE) mit einem echten privaten Konto testen</li>
+      <li>Prüfen, ob <code>perSeason</code> künftig alle Saisons liefert. Erst dann lohnen sich Saison-Sensoren.</li>
+      <li>Klären, welcher Wert maßgeblich ist: <code>playerCard.badges</code> = 51 oder <code>badgeSummary.totalBadges</code> = 32 (gleiches Konto)</li>
+    </ul></div>
+</section>
+
+<section id="belege">
+  <span class="eyebrow">Nachvollziehbarkeit</span>
+  <h2>Quellen &amp; Prüfmethode</h2>
+  <p>Alle Angaben zu Endpunkten, Feldern, Antwortzeiten, Headern und Werten stammen aus direkten Abfragen am 01.11.2026 (curl, Antworten lokal ausgewertet) und aus der OpenAPI-Spezifikation der API. Die abgeleiteten Prozentwerte habe ich aus den Rohzählern nachgerechnet, z.&nbsp;B. Winrate 128 / 207 = 61,84 % und Accuracy 33.974 / 112.775 = 30,13 %. Beides stimmt mit den API-Werten überein.</p>
+  <ul class="src-list">
+    <li><a href="https://api.gametools.network/docs" target="_blank" rel="noopener">api.gametools.network/docs</a> · Swagger-UI</li>
+    <li><a href="https://api.gametools.network/openapi.json" target="_blank" rel="noopener">api.gametools.network/openapi.json</a> · OpenAPI 1.3.0</li>
+    <li><a href="https://github.com/community-network/gametools.network-website" target="_blank" rel="noopener">github.com/community-network/gametools.network-website</a> · Betreiber, „our free API“</li>
+    <li><a href="https://github.com/community-network/bfportal-grpc-bf6" target="_blank" rel="noopener">github.com/community-network/bfportal-grpc-bf6</a> · Santiago-gRPC (reverse engineered)</li>
+    <li><a href="https://github.com/TrackerNetwork/TRN.Developers/issues/102" target="_blank" rel="noopener">TRN.Developers Issue #102</a> · „We are unable to offer Battlefield apis“</li>
+    <li><a href="https://github.com/TrackerNetwork/TRN.Developers" target="_blank" rel="noopener">github.com/TrackerNetwork/TRN.Developers</a> · unterstützte Spiele, <code>TRN-Api-Key</code></li>
+    <li><a href="https://tracker.gg/bf6/articles/battlefield-6-stats-now-live" target="_blank" rel="noopener">tracker.gg · Battlefield 6 Stats now live</a> · nur Website-Tracker</li>
+    <li><a href="https://www.ea.com/legal/user-agreement" target="_blank" rel="noopener">EA User Agreement</a> · Klausel zur Datenextraktion</li>
+    <li><a href="https://www.ea.com/games/battlefield/battlefield-6/player-stats" target="_blank" rel="noopener">EA · Battlefield 6 Player Stats</a> · offizielle Webseite, keine API</li>
+    <li><a href="https://github.com/michaellunzer/Home-Assistant-Custom-Component-Fortnite" target="_blank" rel="noopener">HA-Fortnite-Integration</a> · Architekturmuster</li>
+    <li><a href="https://discord.gg/zMuxW6c" target="_blank" rel="noopener">Community Network Discord</a> · Support/Kontakt laut OpenAPI · <a href="https://github.com/sponsors/community-network" target="_blank" rel="noopener">GitHub Sponsors</a></li>
+    <li>Lovelace-Karten: <a href="https://github.com/custom-cards/flex-table-card" target="_blank" rel="noopener">flex-table-card</a>, <a href="https://github.com/RomRider/apexcharts-card" target="_blank" rel="noopener">apexcharts-card</a>, <a href="https://github.com/piitaya/lovelace-mushroom" target="_blank" rel="noopener">mushroom</a>, <a href="https://github.com/custom-cards/button-card" target="_blank" rel="noopener">button-card</a>, <a href="https://github.com/kalkih/mini-graph-card" target="_blank" rel="noopener">mini-graph-card</a></li>
+  </ul>
+</section>
+
+<footer>Erstellt für das Repository HA-BF6 · Werte sind Momentaufnahmen und ändern sich mit jedem gespielten Match.</footer>
+</div>
