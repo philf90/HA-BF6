@@ -76,7 +76,7 @@ export const STYLE = `
   .symbol img { display: block; width: 100%; height: 100%; object-fit: contain; }
   .name { grid-area: n; align-self: end; min-width: 0; font-size: 17px; line-height: 1.25; font-weight: 700; letter-spacing: -0.02em; color: ${FARBEN.titel}; ${ZWEIZEILIG} }
   .label { grid-area: l; align-self: start; min-width: 0; margin-top: 1px; font-size: 12.5px; line-height: 1.35; color: ${FARBEN.sek}; ${ZWEIZEILIG} }
-  .label ha-icon { --mdc-icon-size: 14px; --ha-icon-display: inline-block; vertical-align: -2px; color: ${FARBEN.label}; }
+  .label ha-icon { --mdc-icon-size: 14px; color: ${FARBEN.label}; }
   .body { display: grid; gap: 10px; padding-top: 12px; min-width: 0; }
   .hinweis { font-size: 12.5px; line-height: 1.4; color: ${FARBEN.sek}; }
   .uk { background: ${FARBEN.kachel}; border: 1px solid ${FARBEN.rand}; border-radius: 13px; padding: 8px 10px; min-width: 0; }

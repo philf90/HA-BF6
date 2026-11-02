@@ -11,9 +11,9 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.6.5.
+Version 0.6.6.
 
-> **Stand:** Version 0.6.5: Jeder Spieler ist ein Gerät mit 20 Sensoren,
+> **Stand:** Version 0.6.6: Jeder Spieler ist ein Gerät mit 20 Sensoren,
 > Rang-Abzeichen und den Ereignissen „Match beendet“ und „Rang gestiegen“
 > (siehe [Entitäten je Spieler](#entitäten-je-spieler)); dazu das Gerät
 > „BF6-Spielwelt“, Aktionen, Optionen, Diagnose, Reparaturhinweis und acht
@@ -385,7 +385,13 @@ Text sichtbar, kein Skript, kein fremdes Bild. Namen erscheinen nicht im Log.
 Automatische Tests laufen gegen Home Assistant 2026.2.3
 (`pytest-homeassistant-custom-component` 0.13.316).
 
-- **0.6.x:** 204 automatische Tests. 0.6.5: verkürzte Profilantwort
+- **0.6.x:** 205 automatische Tests. 0.6.6: Plattform-Symbole im Kopf
+  aller Karten und in den Squad-Zeilen mittig; ein Test verbietet ein
+  eigenes `vertical-align` an `ha-icon`. Gegenprobe: alte Regel
+  `vertical-align: -2px` eingebaut – der Test schlug fehl. Gemessen in
+  Chromium mit nachgebautem `ha-icon`/`ha-svg-icon` aus dem HA-Frontend:
+  Mitte der Symbole vorher 1,3–1,4 px über der Grundlinie, jetzt 3,3–3,4 px
+  (Mitte der x-Höhe 3,5 px). 0.6.5: verkürzte Profilantwort
   privater Konten (Rang, Rangname, Bild, Ereignis „Rang gestiegen“, Prüfung
   der Bildadresse, leere und kaputte Formen). Gegenprobe: verkürzte Form
   nicht gelesen, flaches `badges` genutzt, Bildadresse ungeprüft einzeln
@@ -591,6 +597,10 @@ oder von Hand; der Text kommt aus `.github/release-notes/v<Version>.md`.
   Wurzelverzeichnis `python3 -m http.server 8000 --bind 127.0.0.1`, dann
   `node assets/banner-quelle/render.js` (Playwright mit Chromium, braucht
   Netz für Schriften und Icons); die Social Preview danach neu hochladen.
+- `platzhalter.js` baut `ha-icon` und `ha-svg-icon` wie das HA-Frontend
+  nach (Shadow DOM, `inline-flex`, `vertical-align: middle`), damit Größe
+  und Ausrichtung der Symbole in den Bildern denen in Home Assistant
+  entsprechen (seit 0.6.6).
 
 ## KI-Hinweis
 
