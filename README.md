@@ -11,9 +11,9 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.6.6.
+Version 0.6.7.
 
-> **Stand:** Version 0.6.6: Jeder Spieler ist ein Gerät mit 20 Sensoren,
+> **Stand:** Version 0.6.7: Jeder Spieler ist ein Gerät mit 20 Sensoren,
 > Rang-Abzeichen und den Ereignissen „Match beendet“ und „Rang gestiegen“
 > (siehe [Entitäten je Spieler](#entitäten-je-spieler)); dazu das Gerät
 > „BF6-Spielwelt“, Aktionen, Optionen, Diagnose, Reparaturhinweis und acht
@@ -385,13 +385,19 @@ Text sichtbar, kein Skript, kein fremdes Bild. Namen erscheinen nicht im Log.
 Automatische Tests laufen gegen Home Assistant 2026.2.3
 (`pytest-homeassistant-custom-component` 0.13.316).
 
-- **0.6.x:** 205 automatische Tests. 0.6.6: Plattform-Symbole im Kopf
-  aller Karten und in den Squad-Zeilen mittig; ein Test verbietet ein
-  eigenes `vertical-align` an `ha-icon`. Gegenprobe: alte Regel
-  `vertical-align: -2px` eingebaut – der Test schlug fehl. Gemessen in
-  Chromium mit nachgebautem `ha-icon`/`ha-svg-icon` aus dem HA-Frontend:
-  Mitte der Symbole vorher 1,3–1,4 px über der Grundlinie, jetzt 3,3–3,4 px
-  (Mitte der x-Höhe 3,5 px). 0.6.5: verkürzte Profilantwort
+- **0.6.x:** 205 automatische Tests. 0.6.7: Plattform-Symbole mittig auf
+  Großbuchstaben und Ziffern (`vertical-align: 0.09em`); ein Test verlangt
+  die Anhebung an beiden Inline-Symbolen und verbietet `vertical-align` an
+  allen anderen `ha-icon`. Gegenprobe: Anhebung entfernt, alte Regel
+  `-2px` und Anhebung am großen Kopfsymbol einzeln eingebaut – jedes Mal
+  schlug der Test fehl. Gemessen mit Roboto, der Schrift von Home
+  Assistant, bei 1-facher Pixeldichte und 8 Lagen je Karte: Symbolmitte
+  gegen Versalmitte vorher +0,2 bis +1,4 px (zu tief, passt zum Screenshot
+  der Instanz: +0,5 und +1,5 px), jetzt −0,8 bis +0,3 px, im Mittel 0,0.
+  Die Streuung von etwa 1 px kommt vom Runden der Schrift auf ganze
+  Pixel. 0.6.6: eigene Regel `vertical-align: -2px` entfernt; gemessen
+  war mit Inter statt Roboto und gegen die Mitte der Kleinbuchstaben, in
+  der Instanz blieb das Symbol 0,5–1,5 px zu tief. 0.6.5: verkürzte Profilantwort
   privater Konten (Rang, Rangname, Bild, Ereignis „Rang gestiegen“, Prüfung
   der Bildadresse, leere und kaputte Formen). Gegenprobe: verkürzte Form
   nicht gelesen, flaches `badges` genutzt, Bildadresse ungeprüft einzeln
@@ -600,7 +606,10 @@ oder von Hand; der Text kommt aus `.github/release-notes/v<Version>.md`.
 - `platzhalter.js` baut `ha-icon` und `ha-svg-icon` wie das HA-Frontend
   nach (Shadow DOM, `inline-flex`, `vertical-align: middle`), damit Größe
   und Ausrichtung der Symbole in den Bildern denen in Home Assistant
-  entsprechen (seit 0.6.6).
+  entsprechen (seit 0.6.6). Offen: Die Anhebung der Plattform-Symbole aus
+  0.6.7 erscheint in den gerenderten Bildern nicht, obwohl Chromium sie im
+  Layout meldet; außerhalb dieser Seiten wird sie gezeichnet. Die Bilder
+  sind deshalb unverändert, die Ursache ist nicht geklärt.
 
 ## KI-Hinweis
 
