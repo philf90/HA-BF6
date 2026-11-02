@@ -43,5 +43,116 @@
         "already_configured": "Alle Konten mit diesem Namen sind schon eingerichtet."
       }
     }
+  },
+  "entity": {
+    "sensor": {
+      "kills": {
+        "name": "Kills"
+      },
+      "deaths": {
+        "name": "Tode"
+      },
+      "assists": {
+        "name": "Assists"
+      },
+      "revives": {
+        "name": "Wiederbelebungen"
+      },
+      "matches": {
+        "name": "Matches"
+      },
+      "wins": {
+        "name": "Siege"
+      },
+      "losses": {
+        "name": "Niederlagen"
+      },
+      "xp": {
+        "name": "XP"
+      },
+      "time_played": {
+        "name": "Spielzeit"
+      },
+      "kd": {
+        "name": "K/D"
+      },
+      "kpm": {
+        "name": "Kills pro Minute"
+      },
+      "win_rate": {
+        "name": "Siegquote"
+      },
+      "accuracy": {
+        "name": "Treffergenauigkeit"
+      },
+      "headshot_rate": {
+        "name": "Headshot-Quote"
+      },
+      "human_kill_rate": {
+        "name": "Kills gegen Menschen"
+      },
+      "rank": {
+        "name": "Rang",
+        "state_attributes": {
+          "rank_name": {
+            "name": "Rangname"
+          },
+          "dog_tags": {
+            "name": "Dog Tags"
+          },
+          "badges": {
+            "name": "Abzeichen"
+          },
+          "rank_image": {
+            "name": "Rangabzeichen"
+          },
+          "ranked": {
+            "name": "Ranked"
+          }
+        }
+      },
+      "favorite_class": {
+        "name": "Meistgespielte Klasse"
+      },
+      "top_weapon": {
+        "name": "Top-Waffe",
+        "state_attributes": {
+          "top": {
+            "name": "Top 5"
+          }
+        }
+      },
+      "top_vehicle": {
+        "name": "Top-Fahrzeug",
+        "state_attributes": {
+          "top": {
+            "name": "Top 5"
+          }
+        }
+      },
+      "platform": {
+        "name": "Plattform",
+        "state": {
+          "ea": "EA app",
+          "steam": "Steam",
+          "epic": "Epic Games",
+          "psn": "PlayStation",
+          "xbox": "Xbox",
+          "pc": "PC",
+          "ps4": "PlayStation 4",
+          "ps5": "PlayStation 5",
+          "xboxone": "Xbox One",
+          "xboxseries": "Xbox Series"
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "update_failed": {
+      "message": "Die gametools API hat nicht geantwortet: {error}"
+    },
+    "no_stats": {
+      "message": "Die gametools API liefert für diesen Spieler keine Statistik zu Battlefield 6."
+    }
   }
 }

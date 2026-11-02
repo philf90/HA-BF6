@@ -64,3 +64,28 @@ def player_title(name: str, platform: str) -> str:
     Titel.
     """
     return f"{name} · {PLATFORM_NAMES.get(platform, platform)}"
+
+
+# Takte: Statistik alle 15 min (Antworten sind 600 s gecacht, kuerzer bringt
+# nichts), Profil mit Rang und Abzeichen stuendlich.
+STATS_INTERVAL_MINUTES = 15
+PROFILE_INTERVAL_MINUTES = 60
+
+# Hoechstens so viele Spieler fragt die Integration gleichzeitig ab. Die API
+# nennt kein Limit; WoW Charakter erlaubt 4 bei dokumentierten 100 je Sekunde.
+PARALLEL_PLAYERS = 2
+
+# Symbole je Plattform aus MDI 7.4.47 (Version im Home-Assistant-Frontend).
+# Fuer EA app und Epic Games gibt es dort kein Symbol: Controller.
+PLATFORM_ICONS = {
+    "steam": "mdi:steam",
+    "psn": "mdi:sony-playstation",
+    "ps4": "mdi:sony-playstation",
+    "ps5": "mdi:sony-playstation",
+    "xbox": "mdi:microsoft-xbox",
+    "xboxone": "mdi:microsoft-xbox",
+    "xboxseries": "mdi:microsoft-xbox",
+    "pc": "mdi:microsoft-windows",
+    "ea": "mdi:gamepad-variant",
+    "epic": "mdi:gamepad-variant",
+}

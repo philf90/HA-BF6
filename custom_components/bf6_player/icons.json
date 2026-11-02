@@ -1,0 +1,76 @@
+{
+  "entity": {
+    "sensor": {
+      "kills": {
+        "default": "mdi:target"
+      },
+      "deaths": {
+        "default": "mdi:skull"
+      },
+      "assists": {
+        "default": "mdi:handshake"
+      },
+      "revives": {
+        "default": "mdi:medical-bag"
+      },
+      "matches": {
+        "default": "mdi:flag-checkered"
+      },
+      "wins": {
+        "default": "mdi:trophy"
+      },
+      "losses": {
+        "default": "mdi:flag-remove"
+      },
+      "xp": {
+        "default": "mdi:star-four-points"
+      },
+      "time_played": {
+        "default": "mdi:timer-outline"
+      },
+      "kd": {
+        "default": "mdi:scale-balance"
+      },
+      "kpm": {
+        "default": "mdi:speedometer"
+      },
+      "win_rate": {
+        "default": "mdi:percent"
+      },
+      "accuracy": {
+        "default": "mdi:crosshairs-gps"
+      },
+      "headshot_rate": {
+        "default": "mdi:head-alert"
+      },
+      "human_kill_rate": {
+        "default": "mdi:account-group"
+      },
+      "rank": {
+        "default": "mdi:chevron-triple-up"
+      },
+      "favorite_class": {
+        "default": "mdi:account-tie"
+      },
+      "top_weapon": {
+        "default": "mdi:pistol"
+      },
+      "top_vehicle": {
+        "default": "mdi:tank"
+      },
+      "platform": {
+        "default": "mdi:gamepad-variant",
+        "state": {
+          "steam": "mdi:steam",
+          "psn": "mdi:sony-playstation",
+          "ps4": "mdi:sony-playstation",
+          "ps5": "mdi:sony-playstation",
+          "xbox": "mdi:microsoft-xbox",
+          "xboxone": "mdi:microsoft-xbox",
+          "xboxseries": "mdi:microsoft-xbox",
+          "pc": "mdi:microsoft-windows"
+        }
+      }
+    }
+  }
+}
