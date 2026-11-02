@@ -97,7 +97,7 @@ class Bf6ArsenalCard extends C.Bf6Card {
             `${this._t("headshots")} ${prozent(e.headshot_rate, lang)}`,
             `${this._t("kpm")} ${fmt(e.kpm, lang, 2)}`,
           ]
-        : [e.type, typeof e.seconds === "number" ? `${fmt(e.seconds / 3600, lang, 1)} ${this._t("hours")}` : null];
+        : [e.type, typeof e.seconds === "number" ? `${fmt(e.seconds / 3600, lang, 1)}\u00a0${this._t("hours")}` : null];
     const breite = Math.round(((e.kills || 0) / max) * 100);
     return `
       <div class="zeile${url ? " bild" : ""}">

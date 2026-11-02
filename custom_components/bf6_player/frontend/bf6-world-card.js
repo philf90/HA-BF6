@@ -64,10 +64,10 @@ class Bf6WorldCard extends C.Bf6Card {
       return this._t("ended");
     }
     if (ms < TAG) {
-      return `${vor}${fmt(Math.ceil(ms / 3600000), lang)} ${this._t("hours")}`;
+      return `${vor}${fmt(Math.ceil(ms / 3600000), lang)}\u00a0${this._t("hours")}`;
     }
     const tage = Math.floor(ms / TAG);
-    return `${vor}${fmt(tage, lang)} ${this._t(tage === 1 ? "day" : "days")}`;
+    return `${vor}${fmt(tage, lang)}\u00a0${this._t(tage === 1 ? "day" : "days")}`;
   }
 
   _inhalt() {
@@ -91,7 +91,7 @@ class Bf6WorldCard extends C.Bf6Card {
       const anteil = Number.isNaN(startMs) || endeMs <= startMs ? null : Math.max(0, Math.min(1, (jetzt - startMs) / (endeMs - startMs)));
       teile.push(`
         <div class="uk saison">
-          <div class="zeile0"><span class="zn">${esc(this._rest(endeMs - jetzt))}</span><span class="zr">${anteil === null ? "" : `${esc(fmt(anteil * 100, lang))} %`}</span></div>
+          <div class="zeile0"><span class="zn">${esc(this._rest(endeMs - jetzt))}</span><span class="zr">${anteil === null ? "" : `${esc(fmt(anteil * 100, lang))}\u00a0%`}</span></div>
           ${anteil === null ? "" : `<div class="fort"><i style="width:${(anteil * 100).toFixed(1)}%"></i></div>`}
           <div class="zeile0"><span class="zi">${Number.isNaN(startMs) ? "" : esc(this._datum(startMs, lang))}</span><span class="zr">${esc(this._datum(endeMs, lang))}</span></div>
         </div>`);

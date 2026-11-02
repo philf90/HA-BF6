@@ -41,7 +41,7 @@ class Bf6ModesCard extends C.Bf6Card {
     const zeilen = modi
       .map((m) => {
         const auch = Array.isArray(m.aliases) && m.aliases.length ? ` · ${this._t("also")} ${m.aliases.join(", ")}` : "";
-        const info = `${this._t("win_rate")} ${prozent(m.win_rate, lang)} · K/D ${fmt(m.kd, lang, 2)} · ${fmt(m.kills, lang)} ${this._t("kills")}${auch}`;
+        const info = `${this._t("win_rate")} ${prozent(m.win_rate, lang)} · K/D\u00a0${fmt(m.kd, lang, 2)} · ${fmt(m.kills, lang)}\u00a0${this._t("kills")}${auch}`;
         return `
           <div class="zeile">
             <span class="zn">${esc(m.name || "–")}</span><span class="zw">${esc(fmt(m.matches, lang))}</span>

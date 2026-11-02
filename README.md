@@ -7,9 +7,9 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.6.2.
+Version 0.6.3.
 
-> **Stand:** Version 0.6.2: Jeder Spieler ist ein Gerät mit 20 Sensoren,
+> **Stand:** Version 0.6.3: Jeder Spieler ist ein Gerät mit 20 Sensoren,
 > Rang-Abzeichen und den Ereignissen „Match beendet“ und „Rang gestiegen“
 > (siehe [Entitäten je Spieler](#entitäten-je-spieler)); dazu das Gerät
 > „BF6-Spielwelt“, Aktionen, Optionen, Diagnose, Reparaturhinweis und acht
@@ -197,7 +197,10 @@ liefern.
 Seit 0.6.0. Die Integration liefert die Karten selbst aus und meldet sie im
 Frontend an, wie WoW Charakter: Eine Dashboard-Ressource ist nicht nötig.
 Nach einem Update lädt der Browser die neue Version, weil sie im Pfad steht
-(`/bf6_player/<karte>.js?v=<Version>`); notfalls die Seite neu laden. Im
+(`/bf6_player/<karte>.js?v=<Version>`). Ein Neustart von Home Assistant
+allein reicht dafür nicht: Die geöffnete Seite behält die schon geladenen
+Karten, bis sie neu geladen wird (Browser: Strg+F5; Companion-App:
+„Frontend-Cache zurücksetzen“). Live gesehen am 02.11.2026 mit 0.6.2. Im
 Kartenwähler stehen sie unter „Benutzerdefiniert“ als „BF6 …“.
 
 | Karte | Typ | Inhalt | Optionen |
@@ -225,8 +228,17 @@ sort: win_rate
 - **Stil:** Nachtblau aus `philf90/home-assistant` (Hülle mit Verlauf,
   Radius 22 px, Unterkacheln, Akzent Rosé). Jede Farbe ist eine
   Theme-Variable (`--nachtblau-…`) mit dem dunklen Palettenwert als
-  Rückfall; ohne das Theme sind die Karten auch im hellen Modus dunkel.
-  Breite geprüft bei 344 und 386 px.
+  Rückfall. Breite geprüft bei 344 und 386 px.
+- **Heller Modus:** Mit dem Theme „nachtblau“ folgen die Karten dem Modus,
+  den jeder Benutzer im Profil wählt (System, Hell, Dunkel); ohne das Theme
+  sind sie in beiden Modi dunkel. Hell gelten die Tieftöne der Palette
+  (z. B. Rosé `#994776`, Grün `#38702e`, Amber `#855c04`, Rot `#ae3c38`)
+  auf der Hülle `#fafbfd` → `#f3f5f8`. Kleinster Textkontrast hell, auf
+  der Unterkachel `#eceff2` gerechnet: Sekundärtext 5,21:1, Akzente
+  5,13–5,19:1 (WCAG 2.x, wie DESIGN.md). Die Waffen-, Fahrzeug- und
+  Rangbilder vom CDN sind überwiegend dunkel und stehen auf heller Hülle
+  besser als auf dunkler (gemessen an 7 Bildern vom 02.11.2026: unter
+  1,5:1 zum Grund hell 0–4 %, dunkel 25–83 % der deckenden Bildpunkte).
 - **Siegquote** in Farbe: ab 55 % grün, ab 45 % amber, darunter rot; die
   Zahl steht immer daneben.
 - **Summen:** Die Karten nehmen die Gesamtwerte der Sensoren und rechnen sie
@@ -310,7 +322,22 @@ Text sichtbar, kein Skript, kein fremdes Bild. Namen erscheinen nicht im Log.
 Automatische Tests laufen gegen Home Assistant 2026.2.3
 (`pytest-homeassistant-custom-component` 0.13.316).
 
-- **0.6.x:** 189 automatische Tests. 0.6.2: „BF6 Verlauf“ mit Zeitachse,
+- **0.6.x:** 200 automatische Tests. 0.6.3: heller Modus geprüft und
+  abgesichert. Ein Test je Kartendatei verlangt, dass jede Farbe eine
+  Variable des Themes mit dem dunklen Palettenwert als Rückfall ist (alle
+  19 genutzten Variablen gegen `design/palette.yaml`, Commit cfb46ad) und
+  keine feste Farbe vorkommt; ein weiterer, dass Zahl und Einheit nicht
+  getrennt umbrechen (bei 344 px brach „21,4 %“ in der Arsenal-Karte).
+  Gegenprobe: falscher Rückfall, feste Farbe, Prozent und Stunden ohne
+  geschütztes Leerzeichen einzeln eingebaut – jedes Mal schlug ein Test
+  fehl. Gerendert in Chromium mit den hellen und dunklen Theme-Werten aus
+  der Palette (344 und 386 px, echte Bilder vom CDN): keine Fehler, kein
+  Überlauf, kein Umbruch zwischen Zahl und Einheit (gegen 0.6.2 gemessen:
+  „21,4 %“ brach). 0.6.2 **live geprüft** (Screenshots vom 02.11.2026):
+  Verlauf mit Achse 04.10. bis 02.11., K/D als Strich und Kills als Balken
+  ganz rechts, „Summe 17“; Editor mit Spielerliste „Name · Plattform“ und
+  deutschen Feldern. Erst nach Neuladen der App, vorher lief noch 0.6.1.
+  0.6.2: „BF6 Verlauf“ mit Zeitachse,
   ein Platz je Tag, Woche oder Monat, der laufende Zeitraum rechts; Lücken
   bleiben leer, ein einzelner Wert ist ein kurzer Strich bzw. ein schmaler
   Balken. Live in 0.6.1 gesehen (Screenshots vom 02.11.2026): ein einziger

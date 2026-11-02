@@ -89,7 +89,7 @@ class Bf6MapsCard extends C.Bf6Card {
       .map((k) => {
         const farbe = quotenFarbe(k.win_rate);
         const auch = Array.isArray(k.aliases) && k.aliases.length ? ` · ${this._t("also")} ${k.aliases.join(", ")}` : "";
-        const info = `${fmt(k.matches, lang)} ${this._t("matches")} · ${fmt(k.wins, lang)} ${this._t("wins")} / ${fmt(k.losses, lang)} ${this._t("losses")}${auch}`;
+        const info = `${fmt(k.matches, lang)}\u00a0${this._t("matches")} · ${fmt(k.wins, lang)}\u00a0${this._t("wins")} / ${fmt(k.losses, lang)}\u00a0${this._t("losses")}${auch}`;
         const breite = Math.max(0, Math.min(100, k.win_rate || 0));
         return `
           <div class="zeile">

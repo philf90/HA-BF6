@@ -192,7 +192,7 @@ class Bf6HistoryCard extends C.Bf6Card {
   _diagramm(punkte, e, lang, einheit) {
     const [, stellen, istProzent] = WERTE[e.metric];
     // Spielzeit in der Einheit des Sensors (Vorgabe Stunden), Quoten in %
-    const zusatz = istProzent ? " %" : e.metric === "time_played" && einheit ? ` ${einheit}` : "";
+    const zusatz = istProzent ? "\u00a0%" : e.metric === "time_played" && einheit ? `\u00a0${einheit}` : "";
     const text = (v) => `${fmt(v, lang, stellen)}${zusatz}`;
     const datum = (t) => new Date(t).toLocaleDateString(lang, { day: "2-digit", month: "2-digit" });
     const werte = punkte.map((p) => p.v);
@@ -262,7 +262,7 @@ class Bf6HistoryCard extends C.Bf6Card {
         ${marken}
       </svg>
       <div class="achse"><span>${esc(datum(this._periodenStart(e.period, plaetze - 1)))}</span><span>${esc(datum(jetzt))}</span></div>
-      <div class="leg"><span>${esc(zusammen)}</span><span>${esc(`${fmt(e.days, lang)} ${this._t("days")}`)}</span></div>`;
+      <div class="leg"><span>${esc(zusammen)}</span><span>${esc(`${fmt(e.days, lang)}\u00a0${this._t("days")}`)}</span></div>`;
   }
 
   // Beginn des Zeitraums, der zurueck Zeitraeume vor dem laufenden liegt, in

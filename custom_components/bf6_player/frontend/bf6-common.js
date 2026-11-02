@@ -175,7 +175,7 @@ export function fmt(n, lang, stellen = 0) {
 }
 
 export function prozent(n, lang, stellen = 1) {
-  return n === null || n === undefined ? "–" : `${fmt(n, lang, stellen)} %`;
+  return n === null || n === undefined ? "–" : `${fmt(n, lang, stellen)}\u00a0%`;
 }
 
 // Spielzeit-Sensor in Stunden, gleich welche Einheit eingestellt ist

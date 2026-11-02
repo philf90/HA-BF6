@@ -84,9 +84,9 @@ class Bf6SquadCard extends C.Bf6Card {
           return `<span class="w${n !== null && n === beste[key] ? " best" : ""}">${esc(text)}</span>`;
         }).join("");
         const unten = [
-          `${fmt(zahl(this._st(s.ids.kills)), lang)} ${this._t("kills")}`,
-          `${fmt(zahl(this._st(s.ids.matches)), lang)} ${this._t("matches")}`,
-          `${fmt(stunden(this._st(s.ids.time_played)), lang)} ${this._t("hours")}`,
+          `${fmt(zahl(this._st(s.ids.kills)), lang)}\u00a0${this._t("kills")}`,
+          `${fmt(zahl(this._st(s.ids.matches)), lang)}\u00a0${this._t("matches")}`,
+          `${fmt(stunden(this._st(s.ids.time_played)), lang)}\u00a0${this._t("hours")}`,
         ];
         return `
           <div class="sq">
