@@ -1,16 +1,23 @@
-"""Diagnose: Zustand der Abfragen, ohne Namen und IDs der Spieler."""
+"""Diagnose: Zustand der Abfragen, ohne Namen und IDs der Spieler.
+
+Geschwaerzt werden nur Titel und Daten des Untereintrags (Name, Persona- und
+Nucleus-ID). Die ausgewerteten Daten enthalten keinen Spielernamen; ihre
+Felder "name" (Waffen, Fahrzeuge, Klassen, Karten, Modi) bleiben lesbar.
+Bis 0.5.0 lief die Schwaerzung ueber alles und machte auch diese Namen
+unlesbar.
+"""
 
 from __future__ import annotations
 
 from typing import Any
 
-from homeassistant.components.diagnostics import async_redact_data
+from homeassistant.components.diagnostics import REDACTED, async_redact_data
 from homeassistant.core import HomeAssistant
 
 from . import Bf6ConfigEntry
 from .const import CONF_NAME, CONF_NUCLEUS_ID, CONF_PERSONA_ID
 
-TO_REDACT = {CONF_NAME, CONF_PERSONA_ID, CONF_NUCLEUS_ID, "title"}
+TO_REDACT = {CONF_NAME, CONF_PERSONA_ID, CONF_NUCLEUS_ID}
 
 
 def _coordinator(coordinator: Any) -> dict[str, Any]:
@@ -34,15 +41,12 @@ async def async_get_config_entry_diagnostics(
     for subentry_id, coordinator in runtime.coordinators.items():
         subentry = entry.subentries[subentry_id]
         players.append(
-            async_redact_data(
-                {
-                    "title": subentry.title,
-                    "subentry": dict(subentry.data),
-                    "profile_interval_s": coordinator.profile_interval.total_seconds(),
-                    **_coordinator(coordinator),
-                },
-                TO_REDACT,
-            )
+            {
+                "title": REDACTED,
+                "subentry": async_redact_data(dict(subentry.data), TO_REDACT),
+                "profile_interval_s": coordinator.profile_interval.total_seconds(),
+                **_coordinator(coordinator),
+            }
         )
     return {
         "options": dict(entry.options),

@@ -43,6 +43,14 @@ async def test_diagnostics_without_names_and_ids(hass: HomeAssistant, aioclient_
     assert player["subentry"]["platform"] == "ea"
     assert player["subentry"]["persona_id"] == "**REDACTED**"
     assert player["data"]["stats"]["kills"] == 1000
+    # Namen von Waffen, Klassen, Karten und Modi bleiben lesbar (bis 0.5.0
+    # geschwaerzt, live gefunden am 02.11.2026)
+    stats = player["data"]["stats"]
+    assert stats["weapons"][0]["name"] == "Karabiner B"
+    assert [c["name"] for c in stats["classes"]] == ["Support", "Assault"]
+    assert stats["maps"][0]["name"] == "Karte Eins"
+    assert stats["modes"][0]["name"] == "Conquest"
+    assert player["title"] == "**REDACTED**"
     assert player["last_update_success"] is True
     assert player["update_interval_s"] == 900
     assert player["profile_interval_s"] == 3600

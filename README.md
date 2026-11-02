@@ -7,9 +7,9 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.5.0.
+Version 0.5.1.
 
-> **Stand:** Version 0.5.0: Jeder Spieler ist ein Gerät mit 20 Sensoren,
+> **Stand:** Version 0.5.1: Jeder Spieler ist ein Gerät mit 20 Sensoren,
 > Rang-Abzeichen und den Ereignissen „Match beendet“ und „Rang gestiegen“
 > (siehe [Entitäten je Spieler](#entitäten-je-spieler)); dazu das Gerät
 > „BF6-Spielwelt“, Aktionen, Optionen, Diagnose und Reparaturhinweis.
@@ -179,7 +179,9 @@ liefern.
   liefert (`hasResults: false`); er verschwindet mit der nächsten
   erfolgreichen Abfrage oder mit dem Löschen des Spielers.
 - **Diagnose** (Gerät bzw. Eintrag → Diagnose herunterladen): Zustand und
-  Daten der Abfragen; Namen, Titel, Persona- und Nucleus-ID geschwärzt.
+  Daten der Abfragen; Name und Titel des Spielers, Persona- und Nucleus-ID
+  geschwärzt. Namen von Waffen, Fahrzeugen, Klassen, Karten und Modi
+  bleiben lesbar (seit 0.5.1; in 0.5.0 ebenfalls geschwärzt).
 
 ## Abfragen und Auswertung
 
@@ -240,7 +242,18 @@ wird vor dem Einsetzen in HTML maskiert. Namen erscheinen nicht im Log.
 Automatische Tests laufen gegen Home Assistant 2026.2.3
 (`pytest-homeassistant-custom-component` 0.13.316).
 
-- **0.5.x:** 152 automatische Tests. 0.5.0: Ereignisse (Match beendet mit
+- **0.5.x:** 152 automatische Tests. 0.5.1: Die Diagnose schwärzte in 0.5.0
+  jedes Feld `name`, auch Waffen, Klassen, Karten und Modi; jetzt nur Titel
+  und Daten des Spielers. Der Diagnose-Test prüft nun auch, dass diese Namen
+  lesbar bleiben (Gegenprobe mit dem alten Verhalten: Test schlägt fehl).
+  0.5.0 **live geprüft** (02.11.2026, Home Assistant 2026.10.4, ein
+  Steam-Spieler): Gerät mit 23 Entitäten (20 Sensoren, Rang-Abzeichen, zwei
+  Ereignisse), Gerät „BF6-Spielwelt“ mit Saisonende 19.01.2027 (Saison 5,
+  Battle Pass 5) sowie Portal-Servern und -Spielern, Rang-Abzeichen über
+  den Bild-Proxy von Home Assistant (Quelle `cdn.gametools.network`, PNG),
+  Optionen vorhanden, keine Fehler im Log; dabei der Fehler in der Diagnose
+  gefunden. Ereignisse ohne gespieltes Match noch nicht live ausgelöst.
+  0.5.0: Ereignisse (Match beendet mit
   Zuwächsen und Ergebnis, kein Ereignis beim Start, ohne neues Match, bei
   sinkenden Zählern und nach einer gescheiterten Abfrage; Rang gestiegen),
   Rang-Abzeichen und Wechsel des Bildes, Spielwelt (Werte, Teilausfall,
