@@ -166,3 +166,63 @@ def test_portal_status() -> None:
 )
 def test_int(value, expected) -> None:
     assert parsers._int(value) == expected
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("https://cdn.gametools.network/ranks/bf6/r.png", True),
+        ("http://cdn.gametools.network/ranks/bf6/r.png", False),
+        ("https://192.168.1.1/admin", False),
+        ("https://cdn.gametools.network.example.com/x.png", False),
+        ("https://user:pw@cdn.gametools.network/x.png", False),
+        ("https://cdn.gametools.network:8123/x.png", False),
+        ("javascript:alert(1)", False),
+        ("file:///etc/passwd", False),
+        ("", False),
+        (None, False),
+        ("https://[::1/x", False),
+    ],
+)
+def test_image_url(url, expected) -> None:
+    assert (parsers.image_url(url) is not None) is expected
+    assert parsers.image_url(url) in (url, None)
+
+
+def test_images_filtered_in_stats_and_profile() -> None:
+    data = {
+        **STATS,
+        "weapons": [
+            {"weaponName": "A", "kills": 2, "image": "https://10.0.0.1/a.png"},
+            {
+                "weaponName": "B",
+                "kills": 1,
+                "image": "https://cdn.gametools.network/b.webp",
+            },
+        ],
+    }
+    weapons = parsers.player_stats(data)["weapons"]
+    assert [w["image"] for w in weapons] == [
+        None,
+        "https://cdn.gametools.network/b.webp",
+    ]
+    profile = {
+        "playerProfiles": [{"playerCard": {"rankImage": {"large": "http://evil/x"}}}]
+    }
+    assert parsers.player_profile(profile)["rank_image"] is None
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("Normal_Name-123", "Normal_Name-123"),
+        ("  [Clan] Nämé ★  ", "[Clan] Nämé ★"),
+        ("a\nb\x00c\td", "abcd"),
+        (chr(0x202E) + "abc" + chr(0x2066), "abc"),
+        ("\n\x00", None),
+        ("x" * 100, "x" * 64),
+        (42, None),
+    ],
+)
+def test_clean_name(value, expected) -> None:
+    assert parsers.clean_name(value) == expected

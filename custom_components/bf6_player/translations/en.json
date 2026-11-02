@@ -9,5 +9,39 @@
     "abort": {
       "already_configured": "The gametools API entry already exists. Add players to that entry."
     }
+  },
+  "config_subentries": {
+    "player": {
+      "initiate_flow": {
+        "user": "Add player"
+      },
+      "entry_type": "Player",
+      "step": {
+        "user": {
+          "title": "Find player",
+          "description": "Enter the player name as shown in Battlefield 6 (EA name, Steam, PlayStation or Xbox name), at most {max} characters. Special characters are allowed. Several accounts can share a name; you pick the right one next.",
+          "data": {
+            "name": "Player name"
+          }
+        },
+        "select": {
+          "title": "Pick account",
+          "description": "Accounts found for “{name}” that are not set up yet: {count}. Each line shows name, platform and the date the account was created; 🔒 marks an account that is not public.",
+          "data": {
+            "account": "Account"
+          }
+        }
+      },
+      "error": {
+        "cannot_connect": "The gametools API did not answer. Try again later.",
+        "no_players": "No player with this name was found.",
+        "no_stats": "The gametools API has no Battlefield 6 statistics for this account. Pick another account or try again after a match.",
+        "invalid_name": "Enter a name with 1 to {max} characters, without line breaks or other control characters."
+      },
+      "abort": {
+        "entry_not_loaded": "The gametools API entry is not loaded. Reload it and try again.",
+        "already_configured": "All accounts with this name are already set up."
+      }
+    }
   }
 }

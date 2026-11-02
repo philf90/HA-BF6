@@ -9,5 +9,39 @@
     "abort": {
       "already_configured": "Der Eintrag „gametools API“ besteht schon. Spieler dort hinzufügen."
     }
+  },
+  "config_subentries": {
+    "player": {
+      "initiate_flow": {
+        "user": "Spieler hinzufügen"
+      },
+      "entry_type": "Spieler",
+      "step": {
+        "user": {
+          "title": "Spieler suchen",
+          "description": "Spielernamen so eingeben, wie er in Battlefield 6 steht (EA-Name, Steam-, PlayStation- oder Xbox-Name), höchstens {max} Zeichen. Sonderzeichen sind erlaubt. Mehrere Konten können denselben Namen haben; das richtige wählst du im nächsten Schritt.",
+          "data": {
+            "name": "Spielername"
+          }
+        },
+        "select": {
+          "title": "Konto wählen",
+          "description": "Gefundene Konten zu „{name}“, die noch nicht eingerichtet sind: {count}. Jede Zeile zeigt Name, Plattform und das Datum, an dem das Konto angelegt wurde; 🔒 kennzeichnet ein nicht öffentliches Konto.",
+          "data": {
+            "account": "Konto"
+          }
+        }
+      },
+      "error": {
+        "cannot_connect": "Die gametools API hat nicht geantwortet. Später erneut versuchen.",
+        "no_players": "Kein Spieler mit diesem Namen gefunden.",
+        "no_stats": "Die gametools API kennt für dieses Konto keine Statistik zu Battlefield 6. Ein anderes Konto wählen oder nach einem Match erneut versuchen.",
+        "invalid_name": "Einen Namen mit 1 bis {max} Zeichen eingeben, ohne Zeilenumbrüche oder andere Steuerzeichen."
+      },
+      "abort": {
+        "entry_not_loaded": "Der Eintrag „gametools API“ ist nicht geladen. Neu laden und erneut versuchen.",
+        "already_configured": "Alle Konten mit diesem Namen sind schon eingerichtet."
+      }
+    }
   }
 }
