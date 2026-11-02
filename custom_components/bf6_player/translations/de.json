@@ -144,6 +144,53 @@
           "xboxone": "Xbox One",
           "xboxseries": "Xbox Series"
         }
+      },
+      "season_end": {
+        "name": "Saisonende",
+        "state_attributes": {
+          "season": {
+            "name": "Saison"
+          },
+          "season_start": {
+            "name": "Saisonbeginn"
+          },
+          "battle_pass": {
+            "name": "Battle Pass"
+          }
+        }
+      },
+      "portal_servers": {
+        "name": "Portal-Server"
+      },
+      "portal_players": {
+        "name": "Portal-Spieler"
+      }
+    },
+    "image": {
+      "rank_badge": {
+        "name": "Rang-Abzeichen"
+      }
+    },
+    "event": {
+      "match_finished": {
+        "name": "Match beendet",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "match_finished": "Match beendet"
+            }
+          }
+        }
+      },
+      "rank_up": {
+        "name": "Rang gestiegen",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "rank_up": "Rang gestiegen"
+            }
+          }
+        }
       }
     }
   },
@@ -153,6 +200,60 @@
     },
     "no_stats": {
       "message": "Die gametools API liefert für diesen Spieler keine Statistik zu Battlefield 6."
+    },
+    "unknown_device": {
+      "message": "Das Gerät {device_id} gehört nicht zu BF6 Spieler."
+    },
+    "invalid_name": {
+      "message": "Einen Namen mit 1 bis {max} Zeichen eingeben, ohne Zeilenumbrüche oder andere Steuerzeichen."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Abfragetakte",
+        "description": "Wie oft die Integration die gametools API fragt. Antworten werden 10 Minuten zwischengespeichert, kürzere Takte bringen keine neueren Werte. Speichern lädt den Eintrag neu.",
+        "data": {
+          "stats_interval": "Statistik",
+          "profile_interval": "Profil (Rang, Abzeichen)"
+        }
+      }
+    },
+    "error": {
+      "profile_before_stats": "Das Profil kann nicht öfter abgefragt werden als die Statistik."
+    }
+  },
+  "device": {
+    "world": {
+      "name": "BF6-Spielwelt"
+    }
+  },
+  "issues": {
+    "no_stats": {
+      "title": "Keine Statistik für {player}",
+      "description": "Die gametools API liefert für {player} keine Statistik zu Battlefield 6. Seine Entitäten sind nicht verfügbar, bis die API wieder Werte meldet. Gibt es das Konto nicht mehr, den Spieler am Eintrag „gametools API“ löschen."
+    }
+  },
+  "services": {
+    "refresh": {
+      "name": "Aktualisieren",
+      "description": "Fragt die gametools API sofort ab. Antworten werden 10 Minuten zwischengespeichert, die Werte ändern sich deshalb nicht immer sofort.",
+      "fields": {
+        "device_id": {
+          "name": "Geräte",
+          "description": "Spieler oder BF6-Spielwelt; leer heißt alle."
+        }
+      }
+    },
+    "get_player": {
+      "name": "Spieler nachschlagen",
+      "description": "Liefert die Konten mit diesem Namen, mit Plattform und Erstellungsdatum, ohne etwas anzulegen.",
+      "fields": {
+        "name": {
+          "name": "Spielername",
+          "description": "Name, wie er in Battlefield 6 steht."
+        }
+      }
     }
   }
 }

@@ -18,6 +18,11 @@ SEARCH_URL = f"{BASE}/bf6/player/"
 STATS_URL = f"{BASE}/bf6/stats/"
 
 
+def _calls(aioclient_mock: AiohttpClientMocker, url: str) -> list:
+    """Aufgerufene Adressen zu url (ohne die Abfragen der Spielwelt)."""
+    return [c[1] for c in aioclient_mock.mock_calls if str(c[1]).startswith(url)]
+
+
 async def _loaded(hass: HomeAssistant, entry: MockConfigEntry) -> MockConfigEntry:
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)
@@ -51,8 +56,8 @@ async def test_add_player(hass: HomeAssistant, aioclient_mock: AiohttpClientMock
     assert result["step_id"] == "select"
     assert result["description_placeholders"] == {"name": "Testspieler", "count": "2"}
     # Name ohne Leerzeichen am Rand, Trefferzahl wie in der Antwort
-    assert aioclient_mock.mock_calls[0][1].query["name"] == "Testspieler"
-    assert aioclient_mock.mock_calls[0][1].query["limit"] == "25"
+    assert _calls(aioclient_mock, SEARCH_URL)[0].query["name"] == "Testspieler"
+    assert _calls(aioclient_mock, SEARCH_URL)[0].query["limit"] == "25"
 
     result = await hass.config_entries.subentries.async_configure(
         result["flow_id"], {"account": "1000000001"}
@@ -69,7 +74,7 @@ async def test_add_player(hass: HomeAssistant, aioclient_mock: AiohttpClientMock
         "platform": "ea",
     }
     # Gepruefte Statistik per ID, nicht per Name
-    stats_query = aioclient_mock.mock_calls[1][1].query
+    stats_query = _calls(aioclient_mock, STATS_URL)[0].query
     assert stats_query["playerid"] == "1000000001"
     assert stats_query["nucleus_id"] == "2000000001"
     assert "name" not in stats_query
@@ -108,6 +113,7 @@ async def test_configured_account_not_offered(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ):
     aioclient_mock.get(SEARCH_URL, json=SEARCH)
+    aioclient_mock.get(STATS_URL, json=STATS)
     entry = await _loaded(hass, main_entry(player_subentry()))
     result = await _search(hass, entry)
     assert result["step_id"] == "select"
@@ -120,6 +126,7 @@ async def test_all_accounts_configured(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ):
     aioclient_mock.get(SEARCH_URL, json=SEARCH)
+    aioclient_mock.get(STATS_URL, json=STATS)
     entry = await _loaded(
         hass,
         main_entry(
@@ -207,7 +214,7 @@ async def test_invalid_name(
     assert result["errors"] == {"base": "invalid_name"}
     assert result["description_placeholders"] == {"max": "64"}
     # Ungueltige Namen gehen gar nicht erst an die API
-    assert aioclient_mock.call_count == 0
+    assert _calls(aioclient_mock, SEARCH_URL) == []
 
 
 @pytest.mark.parametrize(
@@ -230,7 +237,7 @@ async def test_special_characters_stay_in_parameter(
     entry = await _loaded(hass, main_entry())
     result = await _search(hass, entry, name)
     assert result["errors"] == {"base": "no_players"}
-    url = aioclient_mock.mock_calls[0][1]
+    url = _calls(aioclient_mock, SEARCH_URL)[0]
     assert url.path == "/bf6/player/"
     assert dict(url.query) == {"name": name, "limit": "25"}
 

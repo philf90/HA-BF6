@@ -17,9 +17,16 @@ from pytest_homeassistant_custom_component.common import (
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
 from custom_components.bf6_player.const import DOMAIN, PLATFORM_ICONS, PLATFORM_NAMES
-from custom_components.bf6_player.sensor import SENSORS, Bf6Sensor
+from custom_components.bf6_player.sensor import SENSORS, WORLD_SENSORS, Bf6Sensor
 
-from .conftest import PROFILE, STATS, STATS_EMPTY, main_entry, player_subentry
+from .conftest import (
+    PROFILE,
+    STATS,
+    STATS_EMPTY,
+    main_entry,
+    mock_world,
+    player_subentry,
+)
 
 BASE = "https://api.gametools.network"
 STATS_URL = f"{BASE}/bf6/stats/"
@@ -46,6 +53,7 @@ def _state(hass: HomeAssistant, key: str, persona_id: int = 1000000001):
 def _mock(aioclient_mock: AiohttpClientMocker, stats=STATS, profile=PROFILE):
     aioclient_mock.get(STATS_URL, json=stats)
     aioclient_mock.get(PROFILE_URL, json=profile)
+    mock_world(aioclient_mock)
 
 
 async def test_sensor_values(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker):
@@ -93,7 +101,9 @@ async def test_sensor_values(hass: HomeAssistant, aioclient_mock: AiohttpClientM
         "MP 3",
     ]
     # Abgefragt per ID und mit Zahlen statt "50%"
-    query = aioclient_mock.mock_calls[0][1].query
+    query = next(
+        c[1] for c in aioclient_mock.mock_calls if str(c[1]).startswith(STATS_URL)
+    ).query
     assert query["playerid"] == "1000000001"
     assert query["format_values"] == "false"
 
@@ -107,7 +117,8 @@ async def test_device(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker):
     assert device.model == "Battlefield 6 · EA app"
     subentry_id = next(iter(entry.subentries))
     entities = er.async_entries_for_device(er.async_get(hass), device.id)
-    assert len(entities) == len(SENSORS) + 1
+    # Sensoren, Plattform, Rang-Abzeichen, zwei Ereignisse
+    assert len(entities) == len(SENSORS) + 1 + 1 + 2
     assert {e.config_subentry_id for e in entities} == {subentry_id}
 
 
@@ -115,6 +126,7 @@ async def test_api_error_makes_player_unavailable(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ):
     aioclient_mock.get(STATS_URL, status=500)
+    mock_world(aioclient_mock)
     await _setup(hass)
     assert _state(hass, "kills").state == STATE_UNAVAILABLE
     # Die Plattform ist gespeichert und bleibt sichtbar
@@ -156,6 +168,7 @@ async def test_profile_failure_keeps_stats(
 ):
     aioclient_mock.get(STATS_URL, json=STATS)
     aioclient_mock.get(PROFILE_URL, status=500)
+    mock_world(aioclient_mock)
     await _setup(hass)
     assert _state(hass, "kills").state == "1000"
     assert _state(hass, "rank").state == STATE_UNKNOWN
@@ -222,7 +235,7 @@ def test_lists_not_recorded() -> None:
 def test_icons_and_translations_match() -> None:
     """Jede Entitaet hat Name und Symbol; Plattformen in allen Listen gleich."""
     icons = json.loads((INTEGRATION / "icons.json").read_text())["entity"]["sensor"]
-    keys = {d.key for d in SENSORS} | {"platform"}
+    keys = {d.key for d in SENSORS + WORLD_SENSORS} | {"platform"}
     assert set(icons) == keys
     for lang in ("en", "de"):
         text = json.loads((INTEGRATION / f"translations/{lang}.json").read_text())

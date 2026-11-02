@@ -13,6 +13,19 @@ def auto_enable_custom_integrations(enable_custom_integrations):
     return
 
 
+# Module, die die Spielwelt-Abfragen selbst nachbauen (eigene Antworten)
+OWN_WORLD_MOCKS = {"test_api", "test_spielwelt", "test_sensoren"}
+
+
+@pytest.fixture(autouse=True)
+def auto_mock_world(request, aioclient_mock):
+    """Jeder geladene Haupteintrag fragt die Spielwelt ab: nachbauen."""
+    if request.module.__name__.rsplit(".", 1)[-1] not in OWN_WORLD_MOCKS:
+        mock_world(aioclient_mock)
+        # Profil der Spieler; die Statistik baut jeder Test selbst nach.
+        aioclient_mock.get("https://api.gametools.network/bf6/profile/", json=PROFILE)
+
+
 def main_entry(*subentries: ConfigSubentryData) -> MockConfigEntry:
     """Haupteintrag wie aus dem Einrichtungsdialog, optional mit Spielern."""
     return MockConfigEntry(
@@ -332,3 +345,9 @@ STATUS = {
         "EU": {"region": "EU", "amounts": {"serverAmount": 400}},
     }
 }
+
+
+def mock_world(aioclient_mock, events=EVENTS, status=STATUS) -> None:
+    """Abfragen der Spielwelt nachbauen (jeder geladene Haupteintrag)."""
+    aioclient_mock.get("https://api.gametools.network/bf6/gameevents/", json=events)
+    aioclient_mock.get("https://api.gametools.network/bf6/status/", json=status)
