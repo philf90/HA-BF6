@@ -1,0 +1,15 @@
+refresh:
+  fields:
+    device_id:
+      selector:
+        device:
+          integration: bf6_player
+          multiple: true
+
+get_player:
+  fields:
+    name:
+      required: true
+      example: Testspieler
+      selector:
+        text:

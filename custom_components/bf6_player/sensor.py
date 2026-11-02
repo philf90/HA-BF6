@@ -24,8 +24,8 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import Bf6ConfigEntry
 from .const import CONF_PLATFORM, PLATFORM_NAMES
-from .coordinator import Bf6PlayerCoordinator
-from .entity import Bf6PlayerEntity
+from .coordinator import Bf6PlayerCoordinator, Bf6WorldCoordinator
+from .entity import Bf6PlayerEntity, Bf6WorldEntity
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -147,6 +147,9 @@ async def async_setup_entry(
         ]
         entities.append(Bf6PlatformSensor(coordinator))
         add(entities)
+    world = entry.runtime_data.world
+    if world is not None:
+        async_add_entities(Bf6WorldSensor(world, d) for d in WORLD_SENSORS)
 
 
 class Bf6Sensor(Bf6PlayerEntity, SensorEntity):
@@ -196,3 +199,65 @@ class Bf6PlatformSensor(Bf6PlayerEntity, SensorEntity):
     @property
     def native_value(self) -> str | None:
         return self._platform if self._platform in PLATFORM_NAMES else None
+
+
+def _season(key: str) -> Callable[[dict[str, Any]], Any]:
+    return lambda data: (data.get("season") or {}).get(key)
+
+
+def _portal(key: str) -> Callable[[dict[str, Any]], Any]:
+    return lambda data: (data.get("portal") or {}).get(key)
+
+
+def _season_attributes(data: dict[str, Any]) -> dict[str, Any]:
+    season = data.get("season") or {}
+    start = season.get("start")
+    return {
+        "season": season.get("number"),
+        "season_start": start.isoformat() if start else None,
+        "battle_pass": season.get("battle_pass"),
+    }
+
+
+WORLD_SENSORS: tuple[Bf6SensorDescription, ...] = (
+    Bf6SensorDescription(
+        key="season_end",
+        device_class=SensorDeviceClass.TIMESTAMP,
+        value=_season("end"),
+        attributes=_season_attributes,
+    ),
+    Bf6SensorDescription(
+        key="portal_servers",
+        state_class=SensorStateClass.MEASUREMENT,
+        value=_portal("servers"),
+    ),
+    Bf6SensorDescription(
+        key="portal_players",
+        state_class=SensorStateClass.MEASUREMENT,
+        value=_portal("players"),
+    ),
+)
+
+
+class Bf6WorldSensor(Bf6WorldEntity, SensorEntity):
+    """Wert der Spielwelt: Saisonende, Portal-Server und -Spieler."""
+
+    entity_description: Bf6SensorDescription
+
+    def __init__(
+        self, coordinator: Bf6WorldCoordinator, description: Bf6SensorDescription
+    ) -> None:
+        super().__init__(coordinator, description.key)
+        self.entity_description = description
+
+    @property
+    def native_value(self) -> Any:
+        if self.coordinator.data is None:
+            return None
+        return self.entity_description.value(self.coordinator.data)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        if self.coordinator.data is None or self.entity_description.attributes is None:
+            return None
+        return self.entity_description.attributes(self.coordinator.data)

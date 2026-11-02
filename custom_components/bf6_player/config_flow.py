@@ -17,10 +17,14 @@ from homeassistant.config_entries import (
     ConfigFlow,
     ConfigFlowResult,
     ConfigSubentryFlow,
+    OptionsFlow,
     SubentryFlowResult,
 )
 from homeassistant.core import callback
 from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
     SelectOptionDict,
     SelectSelector,
     SelectSelectorConfig,
@@ -36,11 +40,17 @@ from .const import (
     CONF_NUCLEUS_ID,
     CONF_PERSONA_ID,
     CONF_PLATFORM,
+    CONF_PROFILE_INTERVAL,
+    CONF_STATS_INTERVAL,
     DOMAIN,
     MAIN_TITLE,
     NAME_MAX,
     PLATFORM_NAMES,
+    PROFILE_INTERVAL_MINUTES,
+    PROFILE_INTERVAL_RANGE,
     SEARCH_LIMIT,
+    STATS_INTERVAL_MINUTES,
+    STATS_INTERVAL_RANGE,
     SUBENTRY_PLAYER,
     player_title,
 )
@@ -76,6 +86,11 @@ class Bf6PlayerConfigFlow(ConfigFlow, domain=DOMAIN):
     """
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        return Bf6OptionsFlow()
 
     @classmethod
     @callback
@@ -229,4 +244,56 @@ class PlayerSubentryFlow(ConfigSubentryFlow):
                 "name": markdown_text(self._name),
                 "count": str(len(self._accounts)),
             },
+        )
+
+
+def _minutes(low: int, high: int) -> NumberSelector:
+    return NumberSelector(
+        NumberSelectorConfig(
+            min=low,
+            max=high,
+            step=1,
+            mode=NumberSelectorMode.BOX,
+            unit_of_measurement="min",
+        )
+    )
+
+
+class Bf6OptionsFlow(OptionsFlow):
+    """Takte der Abfragen. Speichern laedt den Eintrag neu."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            stats = int(user_input[CONF_STATS_INTERVAL])
+            profile = int(user_input[CONF_PROFILE_INTERVAL])
+            if profile < stats:
+                # Das Profil haengt an der Statistik-Abfrage; seltener als
+                # sie kann es nicht laufen.
+                errors["base"] = "profile_before_stats"
+            else:
+                return self.async_create_entry(
+                    data={CONF_STATS_INTERVAL: stats, CONF_PROFILE_INTERVAL: profile}
+                )
+        options = self.config_entry.options
+        schema = vol.Schema(
+            {
+                vol.Required(
+                    CONF_STATS_INTERVAL,
+                    default=options.get(CONF_STATS_INTERVAL, STATS_INTERVAL_MINUTES),
+                ): _minutes(*STATS_INTERVAL_RANGE),
+                vol.Required(
+                    CONF_PROFILE_INTERVAL,
+                    default=options.get(
+                        CONF_PROFILE_INTERVAL, PROFILE_INTERVAL_MINUTES
+                    ),
+                ): _minutes(*PROFILE_INTERVAL_RANGE),
+            }
+        )
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(schema, user_input),
+            errors=errors,
         )

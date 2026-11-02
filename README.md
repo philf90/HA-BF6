@@ -7,12 +7,13 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.4.0.
+Version 0.5.0.
 
-> **Stand:** Version 0.4.0: Spieler lassen sich am Eintrag „gametools API“
-> hinzufügen (siehe [Installation](#installation)); jeder Spieler ist ein
-> Gerät mit 20 Sensoren (siehe [Entitäten je Spieler](#entitäten-je-spieler)).
-> Karten, Ereignisse und Rang-Bild folgen. Den Plan zeigt die Recherche in
+> **Stand:** Version 0.5.0: Jeder Spieler ist ein Gerät mit 20 Sensoren,
+> Rang-Abzeichen und den Ereignissen „Match beendet“ und „Rang gestiegen“
+> (siehe [Entitäten je Spieler](#entitäten-je-spieler)); dazu das Gerät
+> „BF6-Spielwelt“, Aktionen, Optionen, Diagnose und Reparaturhinweis.
+> Dashboard-Karten folgen. Den Plan zeigt die Recherche in
 > [`docs/bf6-api-recherche.html`](docs/bf6-api-recherche.html).
 
 > **KI-Hinweis:** Dieses Projekt entsteht mit Claude Code. Code, Tests und
@@ -109,6 +110,9 @@ der Installation.
 | Meistgespielte Klasse | Sensor (Text) | 15 min | `classes[]` mit der längsten Spielzeit |
 | Top-Waffe, Top-Fahrzeug (Top 5 als Attribut `top`) | Sensoren (Text) | 15 min | `weapons[]`, `vehicles[]` nach Kills |
 | Plattform | Sensor (Diagnose), Symbol je Plattform | gespeichert | aus dem Dialog „Spieler hinzufügen“ |
+| Rang-Abzeichen | Bild (seit 0.5.0) | 60 min | `/bf6/profile/`, `playerCard.rankImage.large` |
+| Match beendet | Ereignis (seit 0.5.0) | 15 min | Zuwachs von `matchesPlayed` und der Zähler zwischen zwei Abfragen |
+| Rang gestiegen | Ereignis (seit 0.5.0) | 60 min | Zuwachs von `playerCard.rank` |
 
 - **Takt:** Statistik alle 15 Minuten; die API cacht Antworten 600 s, öfter
   bringt keine neueren Werte. Profil stündlich; scheitert es, bleibt der
@@ -120,11 +124,62 @@ der Installation.
 - **Entity-IDs** entstehen aus dem Spielernamen und dem Namen des Sensors in
   der Sprache der Oberfläche, z. B. `sensor.testspieler_kills`.
 
+### Ereignisse (seit 0.5.0)
+
+Die API kennt keine einzelnen Matches. „Match beendet“ entsteht, wenn
+`matchesPlayed` zwischen zwei Abfragen wächst, und meldet die Zuwächse:
+`matches`, `wins`, `losses`, `kills`, `deaths`, `assists`, `revives`, `xp`,
+`seconds_played`, dazu `kd` (Kills ÷ Tode der neuen Matches) und `result`
+(`win` oder `loss`, nur bei genau einem neuen Match, sonst leer). Liegen
+mehrere Matches zwischen zwei Abfragen, kommt ein Ereignis über alle. „Rang
+gestiegen“ meldet `previous_rank`, `rank` und `rank_name`.
+
+- Die erste Abfrage nach dem Start setzt nur den Ausgangsstand: Matches
+  während eines Neustarts oder Neuladens lösen kein Ereignis aus.
+- Sinkt ein Zähler (Korrektur der API), gibt es kein Ereignis.
+- Scheitert eine Abfrage, wiederholt sich kein Ereignis.
+- Ein Ereignis kommt frühestens mit der nächsten Abfrage nach dem Match,
+  bei 15 Minuten Takt und 10 Minuten Cache der API also mit Verzögerung.
+
 ### Nicht in der Datenbank
 
 Diese Attribute stehen am Sensor, gehen aber nicht in den Verlauf (Listen und
 Adressen, 16-KB-Grenze des Recorders): `top` (Top-Waffe, Top-Fahrzeug),
 `ranked` und `rank_image` (Rang).
+
+## Gerät „BF6-Spielwelt“
+
+Seit 0.5.0, eines je Eintrag, auch ohne Spieler.
+
+| Wert | Typ | Takt | Quelle (Endpunkt, Feld) |
+|---|---|---|---|
+| Saisonende (Saison, Saisonbeginn, Battle Pass als Attribute) | Zeitstempel | 6 h | `/bf6/gameevents/`, aktives Ereignis `Season<n>`, `validUntil.end.value`; Battle Pass aus `BP<n>` |
+| Portal-Server, Portal-Spieler | Sensoren | 15 min | `/bf6/status/`, `regions.ALL.amounts.serverAmount`, `soldierAmount` |
+
+Die Zahlen zählen nur Portal-Server, nicht die offiziellen Playlists (laut
+Beschreibung des Endpunkts). Scheitert eine der beiden Abfragen, bleibt ihr
+letzter Stand; nicht verfügbar wird die Spielwelt erst, wenn beide nichts
+liefern.
+
+## Optionen, Aktionen, Diagnose
+
+- **Optionen** (seit 0.5.0, „Konfigurieren“ am Eintrag „gametools API“):
+  Takt der Statistik 10–120 min (Vorgabe 15) und des Profils 15–720 min
+  (Vorgabe 60); das Profil darf nicht öfter laufen als die Statistik.
+  Speichern lädt den Eintrag neu. Abschaltbare Gruppen wie bei WoW Charakter
+  gibt es nicht: Alle Spielerwerte kommen aus einer Abfrage, eine Gruppe
+  spart nichts; einzelne Entitäten lassen sich in Home Assistant
+  deaktivieren.
+- **`bf6_player.refresh`**: Spieler und Spielwelt sofort abfragen, wahlweise
+  nur bestimmte Geräte. Die API cacht Antworten 10 Minuten.
+- **`bf6_player.get_player`**: Konten zu einem Namen nachschlagen (Name,
+  IDs, Plattform, Erstellungsdatum, öffentlich), ohne etwas anzulegen; nur
+  mit Antwort. Gleiche Namensprüfung wie im Dialog.
+- **Reparaturhinweis**, wenn die API für einen Spieler keine Statistik
+  liefert (`hasResults: false`); er verschwindet mit der nächsten
+  erfolgreichen Abfrage oder mit dem Löschen des Spielers.
+- **Diagnose** (Gerät bzw. Eintrag → Diagnose herunterladen): Zustand und
+  Daten der Abfragen; Namen, Titel, Persona- und Nucleus-ID geschwärzt.
 
 ## Abfragen und Auswertung
 
@@ -185,7 +240,29 @@ wird vor dem Einsetzen in HTML maskiert. Namen erscheinen nicht im Log.
 Automatische Tests laufen gegen Home Assistant 2026.2.3
 (`pytest-homeassistant-custom-component` 0.13.316).
 
-- **0.4.x:** 131 automatische Tests. 0.4.0: Sensorwerte, Einheiten und
+- **0.5.x:** 152 automatische Tests. 0.5.0: Ereignisse (Match beendet mit
+  Zuwächsen und Ergebnis, kein Ereignis beim Start, ohne neues Match, bei
+  sinkenden Zählern und nach einer gescheiterten Abfrage; Rang gestiegen),
+  Rang-Abzeichen und Wechsel des Bildes, Spielwelt (Werte, Teilausfall,
+  Ausfall, Saison nur alle 6 h), Aktionen (alle, ein Gerät, unbekanntes
+  Gerät, Nachschlagen, ungültiger Name, API-Fehler), Diagnose ohne Namen
+  und IDs, Optionen, Reparaturhinweis. Zwei Fehler fielen vor dem Commit auf:
+  In der Diagnose überschrieben die Abfragedaten die Daten des Spielers
+  (durch einen Test), und ohne Nummerierung hätte eine gescheiterte Abfrage
+  das letzte Ereignis wiederholt (beim Lesen des Entwurfs). Gegenprobe:
+  10 Schutzmaßnahmen einzeln entfernt (Ereignis nur einmal je Abfrage, kein
+  Ereignis bei sinkenden Zählern, erste Abfrage nur Ausgangsstand, Saison
+  nur alle 6 h, Schwärzen in der Diagnose, Hinweis weg bei Erfolg, Profil
+  nicht öfter als Statistik, Bild folgt dem Profil, unbekanntes Gerät, alte
+  Hinweise beim Start) – jedes Mal schlug ein Test fehl. Nicht live
+  geprüft.
+- **0.4.x:** 131 automatische Tests. 0.4.0 **live geprüft** (02.11.2026,
+  iOS-App, Home Assistant 2026.10.4, ein Steam-Spieler): Gerät, alle
+  20 Werte gleich den Werten der API, Plattform mit Steam-Symbol,
+  Entity-IDs aus dem Namen ohne Sonderzeichen (`sensor.<name>_kills`),
+  Langzeitstatistik als Summe bzw. Mittelwert, Abfrage alle 15 Minuten
+  (Debug-Log: 08:53:45 von Hand, 09:08:46 planmäßig), keine Fehler im Log.
+  Der Titel „Name · Steam“ aus 0.3.1 war übernommen. 0.4.0: Sensorwerte, Einheiten und
   Zustandsklassen, Gerät und Zuordnung zum Spieler, API-Fehler, keine
   Statistik, ein Spieler fällt aus und der andere läuft weiter, Profilfehler,
   Profil nur stündlich, Neuladen bei neuem Spieler und nicht beim

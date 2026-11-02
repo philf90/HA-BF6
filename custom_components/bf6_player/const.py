@@ -67,9 +67,22 @@ def player_title(name: str, platform: str) -> str:
 
 
 # Takte: Statistik alle 15 min (Antworten sind 600 s gecacht, kuerzer bringt
-# nichts), Profil mit Rang und Abzeichen stuendlich.
+# nichts), Profil mit Rang und Abzeichen stuendlich. Seit 0.5.0 in den
+# Optionen des Haupteintrags einstellbar, in diesen Grenzen.
 STATS_INTERVAL_MINUTES = 15
 PROFILE_INTERVAL_MINUTES = 60
+CONF_STATS_INTERVAL = "stats_interval"
+CONF_PROFILE_INTERVAL = "profile_interval"
+STATS_INTERVAL_RANGE = (10, 120)
+PROFILE_INTERVAL_RANGE = (15, 720)
+
+# Spielwelt: Portal-Status im festen Takt, Saison selten.
+WORLD_INTERVAL_MINUTES = 15
+SEASON_INTERVAL_MINUTES = 360
+
+# Ereignisse je Spieler (event-Entitaeten)
+EVENT_MATCH_FINISHED = "match_finished"
+EVENT_RANK_UP = "rank_up"
 
 # Hoechstens so viele Spieler fragt die Integration gleichzeitig ab. Die API
 # nennt kein Limit; WoW Charakter erlaubt 4 bei dokumentierten 100 je Sekunde.

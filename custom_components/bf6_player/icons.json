@@ -70,7 +70,37 @@
           "xboxseries": "mdi:microsoft-xbox",
           "pc": "mdi:microsoft-windows"
         }
+      },
+      "season_end": {
+        "default": "mdi:calendar-end"
+      },
+      "portal_servers": {
+        "default": "mdi:server-network"
+      },
+      "portal_players": {
+        "default": "mdi:account-multiple"
       }
+    },
+    "image": {
+      "rank_badge": {
+        "default": "mdi:shield-star"
+      }
+    },
+    "event": {
+      "match_finished": {
+        "default": "mdi:flag-checkered"
+      },
+      "rank_up": {
+        "default": "mdi:chevron-triple-up"
+      }
+    }
+  },
+  "services": {
+    "refresh": {
+      "service": "mdi:refresh"
+    },
+    "get_player": {
+      "service": "mdi:account-search"
     }
   }
 }

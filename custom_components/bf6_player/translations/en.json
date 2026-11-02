@@ -144,6 +144,53 @@
           "xboxone": "Xbox One",
           "xboxseries": "Xbox Series"
         }
+      },
+      "season_end": {
+        "name": "Season end",
+        "state_attributes": {
+          "season": {
+            "name": "Season"
+          },
+          "season_start": {
+            "name": "Season start"
+          },
+          "battle_pass": {
+            "name": "Battle Pass"
+          }
+        }
+      },
+      "portal_servers": {
+        "name": "Portal servers"
+      },
+      "portal_players": {
+        "name": "Portal players"
+      }
+    },
+    "image": {
+      "rank_badge": {
+        "name": "Rank badge"
+      }
+    },
+    "event": {
+      "match_finished": {
+        "name": "Match finished",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "match_finished": "Match finished"
+            }
+          }
+        }
+      },
+      "rank_up": {
+        "name": "Rank up",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "rank_up": "Rank up"
+            }
+          }
+        }
       }
     }
   },
@@ -153,6 +200,60 @@
     },
     "no_stats": {
       "message": "The gametools API has no Battlefield 6 statistics for this player."
+    },
+    "unknown_device": {
+      "message": "Device {device_id} does not belong to BF6 Spieler."
+    },
+    "invalid_name": {
+      "message": "Enter a name with 1 to {max} characters, without line breaks or other control characters."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Polling intervals",
+        "description": "How often the integration asks the gametools API. Answers are cached for 10 minutes, shorter intervals bring no newer values. Saving reloads the entry.",
+        "data": {
+          "stats_interval": "Statistics",
+          "profile_interval": "Profile (rank, badges)"
+        }
+      }
+    },
+    "error": {
+      "profile_before_stats": "The profile cannot be polled more often than the statistics."
+    }
+  },
+  "device": {
+    "world": {
+      "name": "BF6 world"
+    }
+  },
+  "issues": {
+    "no_stats": {
+      "title": "No statistics for {player}",
+      "description": "The gametools API returns no Battlefield 6 statistics for {player}. Its entities are unavailable until the API reports values again. If the account no longer exists, remove the player from the gametools API entry."
+    }
+  },
+  "services": {
+    "refresh": {
+      "name": "Refresh",
+      "description": "Asks the gametools API now. Answers are cached for 10 minutes, so values may not change right away.",
+      "fields": {
+        "device_id": {
+          "name": "Devices",
+          "description": "Players or the BF6 world to refresh; all if empty."
+        }
+      }
+    },
+    "get_player": {
+      "name": "Look up player",
+      "description": "Returns the accounts with this name, with platform and creation date, without adding anything.",
+      "fields": {
+        "name": {
+          "name": "Player name",
+          "description": "Name as shown in Battlefield 6."
+        }
+      }
     }
   }
 }
