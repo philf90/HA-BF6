@@ -224,38 +224,59 @@ export function quotenFarbe(rate) {
   return rate >= 55 ? FARBEN.gruen : rate >= 45 ? FARBEN.amber : FARBEN.rot;
 }
 
-// Spieler: Geraete der Integration mit Kills-Sensor, sortiert nach Name.
-// ids: {translation_key: entity_id}
-export function spieler(hass) {
+// Geraete der Integration aus hass.entities und hass.devices, einmal je Stand
+// der Registries (seit 0.6.10). Der Setter "hass" laeuft bei jeder
+// Zustandsaenderung irgendeiner Entitaet; bis 0.6.9 durchlief jede Karte dabei
+// alle Entitaeten (gemessen: 1,5 ms je Karte bei 5.000 Entitaeten). Home
+// Assistant ersetzt hass.entities und hass.devices bei jeder Aenderung der
+// Registries durch neue Objekte; deren Identitaet reicht als Schluessel.
+// Die Listen sind eingefroren, weil alle Karten sie teilen.
+const INDEX = new WeakMap();
+const LEER = Object.freeze({ spieler: Object.freeze([]), welt: null });
+
+function index(hass) {
+  const entities = hass?.entities;
+  if (!entities) {
+    return LEER;
+  }
+  const treffer = INDEX.get(entities);
+  if (treffer && treffer.devices === hass.devices) {
+    return treffer;
+  }
   const geraete = {};
-  for (const e of Object.values(hass?.entities || {})) {
+  for (const e of Object.values(entities)) {
     if (e.platform === "bf6_player" && e.device_id && e.translation_key) {
       (geraete[e.device_id] = geraete[e.device_id] || {})[e.translation_key] = e.entity_id;
     }
   }
-  return Object.entries(geraete)
+  const devices = hass.devices || {};
+  // Spieler: Geraete mit Kills-Sensor, sortiert nach Name; ids: {translation_key: entity_id}
+  const spieler = Object.entries(geraete)
     .filter(([, ids]) => ids.kills)
     .map(([device, ids]) => {
-      const g = (hass.devices || {})[device] || {};
-      return { device, ids, name: g.name_by_user || g.name || ids.kills, modell: g.model || "" };
+      const g = devices[device] || {};
+      return Object.freeze({ device, ids: Object.freeze(ids), name: g.name_by_user || g.name || ids.kills, modell: g.model || "" });
     })
     .sort((a, b) => a.name.localeCompare(b.name));
+  // Spielwelt: Geraet mit Saisonende oder Portal-Servern
+  let welt = null;
+  const eintrag = Object.entries(geraete).find(([, ids]) => ids.season_end || ids.portal_servers);
+  if (eintrag) {
+    const [device, ids] = eintrag;
+    const g = devices[device] || {};
+    welt = Object.freeze({ device, ids: Object.freeze(ids), name: g.name_by_user || g.name || "BF6" });
+  }
+  const wert = Object.freeze({ devices: hass.devices, spieler: Object.freeze(spieler), welt });
+  INDEX.set(entities, wert);
+  return wert;
 }
 
-// Spielwelt: Geraet mit Saisonende
+export function spieler(hass) {
+  return index(hass).spieler;
+}
+
 export function welt(hass) {
-  const geraete = {};
-  for (const e of Object.values(hass?.entities || {})) {
-    if (e.platform === "bf6_player" && e.device_id && e.translation_key) {
-      (geraete[e.device_id] = geraete[e.device_id] || {})[e.translation_key] = e.entity_id;
-    }
-  }
-  const eintrag = Object.entries(geraete).find(([, ids]) => ids.season_end || ids.portal_servers);
-  if (!eintrag) {
-    return null;
-  }
-  const g = (hass.devices || {})[eintrag[0]] || {};
-  return { device: eintrag[0], ids: eintrag[1], name: g.name_by_user || g.name || "BF6" };
+  return index(hass).welt;
 }
 
 // Spieler aus der Konfiguration: entity (beliebige Entitaet des Spielers);
