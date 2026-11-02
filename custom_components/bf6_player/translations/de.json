@@ -59,7 +59,15 @@
         "name": "Wiederbelebungen"
       },
       "matches": {
-        "name": "Matches"
+        "name": "Matches",
+        "state_attributes": {
+          "maps": {
+            "name": "Karten"
+          },
+          "modes": {
+            "name": "Spielmodi"
+          }
+        }
       },
       "wins": {
         "name": "Siege"
@@ -112,7 +120,12 @@
         }
       },
       "favorite_class": {
-        "name": "Meistgespielte Klasse"
+        "name": "Meistgespielte Klasse",
+        "state_attributes": {
+          "classes": {
+            "name": "Klassen"
+          }
+        }
       },
       "top_weapon": {
         "name": "Top-Waffe",

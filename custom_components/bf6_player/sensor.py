@@ -67,12 +67,22 @@ def _rank_attributes(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _count(key: str, value_key: str | None = None) -> Bf6SensorDescription:
+def _count(
+    key: str,
+    value_key: str | None = None,
+    attributes: Callable[[dict[str, Any]], dict[str, Any]] | None = None,
+) -> Bf6SensorDescription:
     return Bf6SensorDescription(
         key=key,
         state_class=SensorStateClass.TOTAL_INCREASING,
         value=_stat(value_key or key),
+        attributes=attributes,
     )
+
+
+def _lists(*keys: str) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    """Listen aus der Auswertung als Attribute fuer die Karten (seit 0.6.0)."""
+    return lambda data: {key: data["stats"].get(key) or [] for key in keys}
 
 
 def _rate(key: str, digits: int = 1) -> Bf6SensorDescription:
@@ -90,7 +100,7 @@ SENSORS: tuple[Bf6SensorDescription, ...] = (
     _count("deaths"),
     _count("assists"),
     _count("revives"),
-    _count("matches"),
+    _count("matches", attributes=_lists("maps", "modes")),
     _count("wins"),
     _count("losses"),
     _count("xp"),
@@ -125,7 +135,11 @@ SENSORS: tuple[Bf6SensorDescription, ...] = (
         value=_profile("rank"),
         attributes=_rank_attributes,
     ),
-    Bf6SensorDescription(key="favorite_class", value=_stat("favorite_class")),
+    Bf6SensorDescription(
+        key="favorite_class",
+        value=_stat("favorite_class"),
+        attributes=_lists("classes"),
+    ),
     Bf6SensorDescription(
         key="top_weapon", value=_top("weapons"), attributes=_top_list("weapons")
     ),
@@ -158,7 +172,9 @@ class Bf6Sensor(Bf6PlayerEntity, SensorEntity):
     entity_description: Bf6SensorDescription
     # Listen und Bildadressen nicht in die Datenbank (16-KB-Grenze, Verlauf
     # ohne Nutzen).
-    _unrecorded_attributes = frozenset({"top", "ranked", "rank_image"})
+    _unrecorded_attributes = frozenset(
+        {"top", "ranked", "rank_image", "classes", "maps", "modes"}
+    )
 
     def __init__(
         self, coordinator: Bf6PlayerCoordinator, description: Bf6SensorDescription

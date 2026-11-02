@@ -249,23 +249,39 @@ def maps(data: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def modes(data: dict[str, Any]) -> list[dict[str, Any]]:
-    """Spielmodi ohne Sammeleintraege, nach Matches absteigend."""
-    result = []
+    """Spielmodi ohne Sammeleintraege, nach Matches absteigend.
+
+    Doppelte Eintraege mit gleichen Zahlen werden wie bei den Karten zu einem
+    (am 02.11.2026 "Obliteration" als gm_oblit und gm_oblitall, je 1 Match,
+    20 Kills, 12 Tode, 3178 s); ein abweichender Name kommt unter "aliases".
+    """
+    result: list[dict[str, Any]] = []
+    seen: dict[tuple[Any, ...], dict[str, Any]] = {}
     for item in _list(data, "gameModes"):
         if item.get("id") in MODE_AGGREGATES:
             continue
-        kills, matches = item.get("kills"), item.get("matches")
-        result.append(
-            {
-                "name": _text(item.get("gamemodeName")),
-                "matches": _int(matches),
-                "wins": _int(item.get("wins")),
-                "losses": _int(item.get("losses")),
-                "win_rate": ratio(item.get("wins"), matches, 100),
-                "kills": _int(kills),
-                "kd": ratio(kills, item.get("deaths")),
-            }
-        )
+        name = _text(item.get("gamemodeName"))
+        kills, deaths = _int(item.get("kills")), _int(item.get("deaths"))
+        wins, losses = _int(item.get("wins")), _int(item.get("losses"))
+        matches = _int(item.get("matches"))
+        key = (matches, wins, losses, kills, deaths, _int(item.get("secondsPlayed")))
+        if matches and key in seen:
+            first = seen[key]
+            if name and name != first["name"] and name not in first["aliases"]:
+                first["aliases"].append(name)
+            continue
+        entry = {
+            "name": name,
+            "aliases": [],
+            "matches": matches,
+            "wins": wins,
+            "losses": losses,
+            "win_rate": ratio(wins, matches, 100),
+            "kills": kills,
+            "kd": ratio(kills, deaths),
+        }
+        seen[key] = entry
+        result.append(entry)
     result.sort(key=lambda item: item["matches"] or 0, reverse=True)
     return result
 

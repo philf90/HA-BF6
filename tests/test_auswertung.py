@@ -95,6 +95,33 @@ def test_modes_without_official() -> None:
     assert result[0]["win_rate"] == 66.67
 
 
+def test_modes_deduplicated() -> None:
+    """Gleiche Zahlen unter zwei Modi (live am 02.11.2026: gm_oblit und
+    gm_oblitall) stehen einmal, der zweite Name unter "aliases"; ungespielte
+    Modi und Modi mit anderen Zahlen bleiben getrennt."""
+    mode = {"kills": 20, "deaths": 12, "wins": 0, "losses": 1, "matches": 1}
+    data = {
+        "gameModes": [
+            {"gamemodeName": "Obliteration", "id": "gm_a", **mode, "secondsPlayed": 9},
+            {
+                "gamemodeName": "Obliteration X",
+                "id": "gm_b",
+                **mode,
+                "secondsPlayed": 9,
+            },
+            {"gamemodeName": "Obliteration", "id": "gm_c", **mode, "secondsPlayed": 9},
+            {"gamemodeName": "Anders", "id": "gm_d", **mode, "secondsPlayed": 10},
+            {"gamemodeName": "Leer A", "id": "gm_e", "matches": 0},
+            {"gamemodeName": "Leer B", "id": "gm_f", "matches": 0},
+        ]
+    }
+    result = parsers.modes(data)
+    assert [m["name"] for m in result] == ["Obliteration", "Anders", "Leer A", "Leer B"]
+    assert result[0]["aliases"] == ["Obliteration X"]
+    assert result[0]["kd"] == 1.67
+    assert result[1]["aliases"] == []
+
+
 def test_player_results() -> None:
     results = parsers.player_results(SEARCH)
     assert len(results) == 2
