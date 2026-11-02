@@ -84,9 +84,16 @@ SEASON_INTERVAL_MINUTES = 360
 EVENT_MATCH_FINISHED = "match_finished"
 EVENT_RANK_UP = "rank_up"
 
-# Hoechstens so viele Spieler fragt die Integration gleichzeitig ab. Die API
-# nennt kein Limit; WoW Charakter erlaubt 4 bei dokumentierten 100 je Sekunde.
-PARALLEL_PLAYERS = 2
+# Hoechstens so viele Abfragen laufen gleichzeitig. Die API nennt kein Limit;
+# WoW Charakter erlaubt 4 bei dokumentierten 100 je Sekunde. Seit 0.6.8 haelt
+# der Client das Limit selbst, damit es auch fuer den regulaeren Takt und die
+# Aktionen gilt (bis 0.6.7 nur beim Start).
+PARALLEL_REQUESTS = 2
+
+# Laengste Wartezeit aus einem Retry-After-Header nach HTTP 429. Ein
+# fehlerhafter Header (z. B. ein Datum in Jahren) soll die Abfragen nicht auf
+# Dauer stilllegen.
+RETRY_AFTER_MAX_SECONDS = 6 * 3600
 
 # Symbole je Plattform aus MDI 7.4.47 (Version im Home-Assistant-Frontend).
 # Fuer EA app und Epic Games gibt es dort kein Symbol: Controller.

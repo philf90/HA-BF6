@@ -61,6 +61,14 @@ def _coordinators(hass: HomeAssistant) -> dict[str, Any]:
     return result
 
 
+def _client(hass: HomeAssistant) -> GametoolsClient:
+    """Client des geladenen Eintrags (gemeinsames Limit), sonst ein eigener."""
+    for entry in hass.config_entries.async_entries(DOMAIN):
+        if entry.state is ConfigEntryState.LOADED:
+            return entry.runtime_data.client
+    return GametoolsClient(async_get_clientsession(hass))
+
+
 async def _async_refresh(call: ServiceCall) -> None:
     """Spieler und Spielwelt sofort abfragen; ohne Geraet alle.
 
@@ -89,7 +97,12 @@ async def _async_refresh(call: ServiceCall) -> None:
             chosen.extend(coordinators[key] for key in keys)
     else:
         chosen = list(coordinators.values())
-    await asyncio.gather(*(coordinator.async_refresh() for coordinator in chosen))
+    # async_request_refresh statt async_refresh (seit 0.6.8): Der Debouncer
+    # des Coordinators fasst Aufrufe innerhalb von 10 s zusammen; das Limit
+    # gleichzeitiger Abfragen haelt der Client.
+    await asyncio.gather(
+        *(coordinator.async_request_refresh() for coordinator in chosen)
+    )
 
 
 async def _async_get_player(call: ServiceCall) -> ServiceResponse:
@@ -103,7 +116,7 @@ async def _async_get_player(call: ServiceCall) -> ServiceResponse:
             translation_key="invalid_name",
             translation_placeholders={"max": str(NAME_MAX)},
         )
-    client = GametoolsClient(async_get_clientsession(call.hass))
+    client = _client(call.hass)
     try:
         found = parsers.player_results(await client.search_players(name, SEARCH_LIMIT))
     except GametoolsError as err:

@@ -28,7 +28,6 @@ from .const import (
     CONF_NAME,
     CONF_PLATFORM,
     DOMAIN,
-    PARALLEL_PLAYERS,
     SUBENTRY_PLAYER,
     player_title,
 )
@@ -131,15 +130,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: Bf6ConfigEntry) -> bool:
         runtime.coordinators[subentry_id] = Bf6PlayerCoordinator(
             hass, entry, runtime.client, entry.subentries[subentry_id]
         )
-    limit = asyncio.Semaphore(PARALLEL_PLAYERS)
-
-    async def first_refresh(coordinator: Any) -> None:
-        async with limit:
-            await coordinator.async_refresh()
-
+    # Das Limit gleichzeitiger Abfragen haelt der Client (seit 0.6.8).
     await asyncio.gather(
-        first_refresh(runtime.world),
-        *map(first_refresh, runtime.coordinators.values()),
+        runtime.world.async_refresh(),
+        *(coordinator.async_refresh() for coordinator in runtime.coordinators.values()),
     )
     entry.runtime_data = runtime
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

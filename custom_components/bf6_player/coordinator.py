@@ -20,7 +20,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 
 from . import parsers
-from .api import GametoolsClient, GametoolsError, PlayerRef
+from .api import GametoolsClient, GametoolsError, GametoolsRateLimited, PlayerRef
 from .const import (
     CONF_NUCLEUS_ID,
     CONF_PERSONA_ID,
@@ -31,6 +31,7 @@ from .const import (
     EVENT_MATCH_FINISHED,
     EVENT_RANK_UP,
     PROFILE_INTERVAL_MINUTES,
+    RETRY_AFTER_MAX_SECONDS,
     SEASON_INTERVAL_MINUTES,
     STATS_INTERVAL_MINUTES,
     WORLD_INTERVAL_MINUTES,
@@ -52,10 +53,43 @@ MATCH_COUNTERS = (
 )
 
 
+# Zweite Verteidigungslinie hinter parsers.py: Faende die Auswertung doch einen
+# Wert, an dem sie scheitert, soll das wie ein API-Fehler wirken (Entitaeten
+# nicht verfuegbar, letzter Stand bleibt) statt die ganze Abfrage abzubrechen.
+PARSE_ERRORS = (AttributeError, KeyError, TypeError, ValueError)
+
+
 def player_ref(subentry: ConfigSubentry) -> PlayerRef:
     data = subentry.data
     return PlayerRef(
         int(data[CONF_PERSONA_ID]), int(data[CONF_NUCLEUS_ID]), data[CONF_PLATFORM]
+    )
+
+
+def retry_after(err: BaseException, interval: timedelta | None) -> float | None:
+    """Wartezeit nach HTTP 429 mit Retry-After, sonst None (normaler Takt).
+
+    Nie kuerzer als der Takt (kein schnelleres Abfragen als eingestellt), nie
+    laenger als RETRY_AFTER_MAX_SECONDS.
+    """
+    if not isinstance(err, GametoolsRateLimited) or err.retry_after is None:
+        return None
+    floor = interval.total_seconds() if interval else 0.0
+    return min(max(err.retry_after, floor), RETRY_AFTER_MAX_SECONDS)
+
+
+def _update_failed(err: BaseException, retry: float | None = None) -> UpdateFailed:
+    """UpdateFailed mit lesbarem Grund; Auswertungsfehler ohne Rohtext."""
+    error = (
+        str(err)
+        if isinstance(err, GametoolsError)
+        else f"Antwort nicht auswertbar ({type(err).__name__})"
+    )
+    return UpdateFailed(
+        translation_domain=DOMAIN,
+        translation_key="update_failed",
+        translation_placeholders={"error": error},
+        retry_after=retry,
     )
 
 
@@ -151,12 +185,8 @@ class Bf6PlayerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_update_data(self) -> dict[str, Any]:
         try:
             stats = parsers.player_stats(await self.client.stats(self.player))
-        except GametoolsError as err:
-            raise UpdateFailed(
-                translation_domain=DOMAIN,
-                translation_key="update_failed",
-                translation_placeholders={"error": str(err)},
-            ) from err
+        except (GametoolsError, *PARSE_ERRORS) as err:
+            raise _update_failed(err, retry_after(err, self.update_interval)) from err
         if not stats["has_results"]:
             # HTTP 200 mit hasResults = false: Die API kennt das Konto nicht
             # (mehr) oder liefert gerade nichts.
@@ -188,7 +218,7 @@ class Bf6PlayerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._profile = parsers.player_profile(
                 await self.client.profile(self.player)
             )
-        except GametoolsError as err:
+        except (GametoolsError, *PARSE_ERRORS) as err:
             _LOGGER.warning("Profil von Spieler %s nicht geladen: %s", persona_id, err)
             return
         _LOGGER.debug("Profil von Spieler %s geladen", persona_id)
@@ -236,19 +266,20 @@ class Bf6WorldCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         ):
             try:
                 self._season = parsers.season(await self.client.game_events())
-            except GametoolsError as err:
+            except (GametoolsError, *PARSE_ERRORS) as err:
                 errors.append(err)
             else:
                 self._season_at = now
         portal = (self.data or {}).get("portal")
         try:
             portal = parsers.portal_status(await self.client.portal_status())
-        except GametoolsError as err:
+        except (GametoolsError, *PARSE_ERRORS) as err:
             errors.append(err)
         if self._season is None and portal is None:
-            raise UpdateFailed(
-                translation_domain=DOMAIN,
-                translation_key="update_failed",
-                translation_placeholders={"error": str(errors[-1])},
-            )
+            waits = [
+                wait
+                for err in errors
+                if (wait := retry_after(err, self.update_interval)) is not None
+            ]
+            raise _update_failed(errors[-1], max(waits, default=None)) from errors[-1]
         return {"season": self._season, "portal": portal}
