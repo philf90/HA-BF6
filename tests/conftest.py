@@ -1,9 +1,10 @@
 """Gemeinsame Fixtures."""
 
 import pytest
+from homeassistant.config_entries import ConfigSubentryData
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.bf6_player.const import DOMAIN, MAIN_TITLE
+from custom_components.bf6_player.const import DOMAIN, MAIN_TITLE, SUBENTRY_PLAYER
 
 
 @pytest.fixture(autouse=True)
@@ -12,9 +13,35 @@ def auto_enable_custom_integrations(enable_custom_integrations):
     return
 
 
-def main_entry() -> MockConfigEntry:
-    """Haupteintrag wie aus dem Einrichtungsdialog."""
-    return MockConfigEntry(domain=DOMAIN, title=MAIN_TITLE, unique_id=DOMAIN, data={})
+def main_entry(*subentries: ConfigSubentryData) -> MockConfigEntry:
+    """Haupteintrag wie aus dem Einrichtungsdialog, optional mit Spielern."""
+    return MockConfigEntry(
+        domain=DOMAIN,
+        title=MAIN_TITLE,
+        unique_id=DOMAIN,
+        data={},
+        subentries_data=list(subentries),
+    )
+
+
+def player_subentry(
+    persona_id: int = 1000000001,
+    nucleus_id: int = 2000000001,
+    platform: str = "ea",
+    name: str = "Testspieler",
+) -> ConfigSubentryData:
+    """Untereintrag eines Spielers wie aus dem Dialog "Spieler hinzufuegen"."""
+    return ConfigSubentryData(
+        data={
+            "name": name,
+            "persona_id": persona_id,
+            "nucleus_id": nucleus_id,
+            "platform": platform,
+        },
+        subentry_type=SUBENTRY_PLAYER,
+        title=name,
+        unique_id=str(persona_id),
+    )
 
 
 # Antworten im Aufbau der gametools API (echte Antworten vom 01./02.11.2026);

@@ -7,12 +7,11 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.2.0.
+Version 0.3.0.
 
-> **Stand:** Version 0.2.0 kann die gametools API abfragen und die Antworten
-> auswerten (siehe [Abfragen und Auswertung](#abfragen-und-auswertung)). Die
-> Integration lässt sich installieren und der Eintrag „gametools API“ anlegen;
-> Spieler und Sensoren gibt es noch nicht. Den Plan zeigt die Recherche in
+> **Stand:** Version 0.3.0: Spieler lassen sich am Eintrag „gametools API“
+> hinzufügen (siehe [Installation](#installation)). Geräte und Sensoren je
+> Spieler gibt es noch nicht; sie kommen mit 0.4.0. Den Plan zeigt die Recherche in
 > [`docs/bf6-api-recherche.html`](docs/bf6-api-recherche.html).
 
 > **KI-Hinweis:** Dieses Projekt entsteht mit Claude Code. Code, Tests und
@@ -47,6 +46,17 @@ Karten dem Nachtblau-Stil aus
 3. **Einrichten:** Zweite Schaltfläche oben, oder Einstellungen → Geräte & Dienste
    → Integration hinzufügen → „BF6 Spieler“ → **Absenden**. Es entsteht der
    Eintrag „gametools API“; einen zweiten lehnt der Dialog ab.
+4. **Spieler hinzufügen** (seit 0.3.0): Einstellungen → Geräte & Dienste →
+   BF6 Spieler → beim Eintrag „gametools API“ **Spieler hinzufügen**.
+   Spielernamen eingeben, so wie er in Battlefield 6 steht (EA-Name, Steam-,
+   PlayStation- oder Xbox-Name). Die Liste zeigt alle Konten mit diesem Namen,
+   die noch nicht eingerichtet sind, je Zeile Name, Plattform und das Datum, an
+   dem das Konto angelegt wurde; 🔒 kennzeichnet ein nicht öffentliches Konto.
+   Das richtige Konto wählen. Vor dem Anlegen fragt die Integration die
+   Statistik ab; kennt die API zu dem Konto keine BF6-Werte, meldet der Dialog
+   das und legt nichts an. Gespeichert werden Persona-ID, Nucleus-ID und
+   Plattform, nicht der Name: Namen sind nicht eindeutig (am 01.11.2026 zwei
+   Steam-Konten mit demselben Namen und völlig anderen Werten).
 
 ## Datenquelle
 
@@ -64,9 +74,10 @@ ist kein Produkt von EA, DICE oder Community Network. Fragen zur API:
 
 - **Haupteintrag „gametools API“** (seit 0.1.0): einmalig, ohne Zugangsdaten.
   Später mit den Optionen für Takte und Gruppen.
-- **Untereintrag je Spieler** (geplant): Name suchen, Konto aus der Trefferliste
-  wählen. Gespeichert werden Persona-ID, Nucleus-ID und Plattform, weil Namen
-  nicht eindeutig sind. Jeder Spieler wird ein eigenes Gerät.
+- **Untereintrag je Spieler** (seit 0.3.0): Name suchen, Konto aus der
+  Trefferliste wählen. Gespeichert werden Persona-ID, Nucleus-ID und Plattform,
+  weil Namen nicht eindeutig sind. Ab 0.4.0 wird jeder Spieler ein eigenes
+  Gerät.
 - **Gerät „BF6-Spielwelt“** (geplant): Saison, Battle Pass und Portal-Server.
 
 ## Abfragen und Auswertung
@@ -110,6 +121,14 @@ per ID, nie per Name:
 Automatische Tests laufen gegen Home Assistant 2026.2.3
 (`pytest-homeassistant-custom-component` 0.13.316).
 
+- **0.3.x:** 83 automatische Tests. 0.3.0: Dialog „Spieler hinzufügen“
+  (Suche, Auswahl, Prüfung der Statistik, schon eingerichtete Konten, keine
+  Treffer, 404, Verbindungsfehler, Eintrag nicht geladen, Zeile der
+  Auswahlliste). Ein Test fand dabei einen Fehler vor dem Commit: Bei HTTP 404
+  der Suche blieb der Dialog ohne Meldung stehen. Gegenprobe: Filter für schon
+  eingerichtete Konten, Prüfung auf `hasResults`, Kürzen des Namens und
+  Prüfung auf geladenen Eintrag einzeln entfernt – jedes Mal schlug ein Test
+  fehl. Nicht live in Home Assistant geprüft.
 - **0.2.x:** 72 automatische Tests. 0.2.0: API-Client (Parameter, Fehler
   404/429/5xx, kein JSON, Zeitüberschreitung, Verbindungsfehler) und
   Auswertung mit erfundenen Werten im Aufbau echter Antworten. Gegenprobe:
