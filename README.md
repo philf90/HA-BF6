@@ -11,9 +11,9 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.6.10.
+Version 0.6.11.
 
-> **Stand:** Version 0.6.10: Jeder Spieler ist ein Gerät mit 20 Sensoren,
+> **Stand:** Version 0.6.11: Jeder Spieler ist ein Gerät mit 20 Sensoren,
 > Rang-Abzeichen und den Ereignissen „Match beendet“ und „Rang gestiegen“
 > (siehe [Entitäten je Spieler](#entitäten-je-spieler)); dazu das Gerät
 > „BF6-Spielwelt“, Aktionen, Optionen, Diagnose, Reparaturhinweis und acht
@@ -164,6 +164,9 @@ gestiegen“ meldet `previous_rank`, `rank` und `rank_name`.
 - Die erste Abfrage nach dem Start setzt nur den Ausgangsstand: Matches
   während eines Neustarts oder Neuladens lösen kein Ereignis aus.
 - Sinkt ein Zähler (Korrektur der API), gibt es kein Ereignis.
+- Fehlt ein Zähler außer `matches` in der Antwort, kommt das Ereignis
+  trotzdem, der fehlende Wert ist leer (`None`), und das Log nennt ihn
+  einmal als Warnung (seit 0.6.11; vorher fiel das Ereignis dann ganz aus).
 - Scheitert eine Abfrage, wiederholt sich kein Ereignis.
 - Ein Ereignis kommt frühestens mit der nächsten Abfrage nach dem Match,
   bei 15 Minuten Takt und 10 Minuten Cache der API also mit Verzögerung.
@@ -385,7 +388,7 @@ Shell, keine Datenbank-Abfrage, kein Template); geprüft am 02.11.2026:
 | Text im Dialog | Das Frontend zeigt Beschreibungen als Markdown und filtert HTML danach mit `filterXSS`; Links ließe es durch. Der Name im Text „Konto wählen“ wird deshalb mit `\` vor jedem Markdown-Zeichen eingesetzt |
 | Auswahlliste, Titel | Das Frontend setzt Beschriftungen als Text ein (Lit), nicht als HTML |
 | Name aus der API-Antwort | Steuer- und Richtungszeichen entfernt, höchstens 64 Zeichen, bevor er Titel des Spielers wird |
-| Bildadressen aus der API | nur `https://cdn.gametools.network/…` ohne Benutzer, Passwort und fremden Port; alles andere wird verworfen, damit Home Assistant keine Adressen im eigenen Netz abruft |
+| Bildadressen aus der API | nur `https://cdn.gametools.network/…` ohne Benutzer, Passwort und fremden Port; alles andere wird verworfen, damit Home Assistant keine Adressen im eigenen Netz abruft. Das Rang-Abzeichen lädt die Integration seit 0.6.11 selbst: ohne Weiterleitung (eine Weiterleitung könnte sonst doch ins eigene Netz führen), nur Status 200 mit `image/*`, höchstens 2 MB (das echte Abzeichen hat 259 KB), Zeitlimit 10 s |
 
 In den Karten (seit 0.6.0) geht jeder Text aus Entitäten und Geräten
 (Spielernamen, Waffen, Karten, Modi …) durch `esc()`, das `&`, `<`, `>`, `"`
@@ -413,8 +416,17 @@ Automatische Tests laufen gegen zwei Versionen von Home Assistant: die
 Mindestversion 2026.2.3 (`pytest-homeassistant-custom-component` 0.13.316,
 Python 3.13) und seit 0.6.9 die aktuelle 2026.10.4 (0.13.375, Python 3.14).
 
-- **0.6.x:** 282 automatische Tests, grün gegen Home Assistant 2026.2.3 und
-  2026.10.4. 0.6.10: Die Karten bauen den Index der Spieler und der
+- **0.6.x:** 288 automatische Tests, grün gegen Home Assistant 2026.2.3 und
+  2026.10.4. 0.6.11: „Match beendet“ braucht nur noch `matches`, fehlende
+  Zähler stehen als `None` im Ereignis; das Rang-Abzeichen lädt die
+  Integration selbst (keine Weiterleitung, nur `image/*`, höchstens 2 MB,
+  Zwischenspeicher je Adresse ohne das private `_cached_image` von Home
+  Assistant). Gegenprobe: `match_event` aus 0.6.10 (2 Tests schlagen fehl),
+  Warnung bei jedem Match (1), `allow_redirects=True` (1), ohne
+  Zwischenspeicher (1), ohne Größengrenze (1), ohne Typprüfung (1; der
+  erste Entwurf dieses Tests prüfte über die Bild-Adresse, an der Home
+  Assistant den Typ selbst prüft, und schlug nicht fehl), `image.py` aus
+  0.6.10 (5). 0.6.10: Die Karten bauen den Index der Spieler und der
   Spielwelt nur neu, wenn sich die Registries ändern (`hass.entities`,
   `hass.devices`), nicht bei jeder Zustandsänderung. Gezählt in Node.js mit
   8 Karten und 100 Zustandsänderungen: vorher 800 Durchläufe aller

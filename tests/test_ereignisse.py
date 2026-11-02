@@ -100,6 +100,26 @@ async def test_match_finished(
     assert attrs["result"] == "win"
 
 
+async def test_match_finished_without_xp(hass, aioclient_mock, freezer, caplog):
+    """B10 im Ablauf: Antworten ohne XP, Ereignis kommt, Warnung nur einmal."""
+    ohne = copy.deepcopy(STATS)
+    del ohne["XP"]
+    await _setup(hass, aioclient_mock, ohne)
+    entity_id = _event_id(hass, "match_finished")
+    eins = _after_match(matchesPlayed=1, wins=1, kills=20, deaths=10)
+    del eins["XP"]
+    await _next(hass, aioclient_mock, freezer, eins)
+    attrs = hass.states.get(entity_id).attributes
+    assert attrs["matches"] == 1
+    assert attrs["kills"] == 20
+    assert attrs["xp"] is None
+    zwei = copy.deepcopy(eins)
+    zwei["matchesPlayed"] += 1
+    await _next(hass, aioclient_mock, freezer, zwei)
+    assert hass.states.get(entity_id).attributes["matches"] == 1
+    assert caplog.text.count("xp fehlen in der Antwort") == 1
+
+
 async def test_no_event_without_new_match(hass, aioclient_mock, freezer):
     await _setup(hass, aioclient_mock, STATS)
     entity_id = _event_id(hass, "match_finished")
@@ -162,6 +182,40 @@ def test_match_event_rules() -> None:
     assert match_event(base, {**base, "matches": None}) is None
     draw = match_event(base, {**base, "matches": 11})
     assert draw["result"] is None  # Match ohne Sieg und Niederlage
+
+
+def test_match_event_without_side_counter() -> None:
+    """B10: Fehlt ein Zaehler ausser matches, gibt es das Ereignis trotzdem;
+    der fehlende Wert ist None (bis 0.6.10 fiel das Ereignis ganz aus)."""
+    base = dict.fromkeys(
+        (
+            "matches",
+            "wins",
+            "losses",
+            "kills",
+            "deaths",
+            "assists",
+            "revives",
+            "xp",
+            "seconds_played",
+        ),
+        10,
+    )
+    ohne_xp = {**base, "xp": None}
+    event = match_event(ohne_xp, {**ohne_xp, "matches": 11, "wins": 11, "kills": 14})
+    assert event["xp"] is None
+    assert event["matches"] == 1
+    assert event["kills"] == 4
+    assert event["result"] == "win"
+    # Fehlen Kills oder Tode, gibt es kein K/D
+    event = match_event(base, {**base, "matches": 11, "deaths": None})
+    assert event["deaths"] is None
+    assert event["kd"] is None
+    # Nur in der neuen Abfrage vorhanden: kein Zuwachs bestimmbar
+    event = match_event(ohne_xp, {**base, "matches": 11, "xp": 99})
+    assert event["xp"] is None
+    # Ein vorhandener Zaehler, der sinkt, verhindert das Ereignis weiterhin
+    assert match_event(ohne_xp, {**ohne_xp, "matches": 11, "kills": 5}) is None
 
 
 def test_rank_event_rules() -> None:

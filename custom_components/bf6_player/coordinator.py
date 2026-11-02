@@ -121,17 +121,23 @@ def match_event(old: dict[str, Any], new: dict[str, Any]) -> dict[str, Any] | No
     mehrere liegen. Die Werte sind deshalb Zuwaechse ueber alle neuen
     Matches; "result" gibt es nur bei genau einem. Sinkt ein Zaehler
     (Korrektur der API), gibt es kein Ereignis.
+
+    Pflicht ist nur "matches" (seit 0.6.11). Fehlt ein anderer Zaehler in
+    einer der beiden Abfragen, steht er als None im Ereignis; bis 0.6.10 fiel
+    das Ereignis dann ganz aus, ohne Hinweis im Log (Review B10).
     """
-    delta: dict[str, int] = {}
+    before, after = old.get("matches"), new.get("matches")
+    if not isinstance(before, int) or not isinstance(after, int) or after <= before:
+        return None
+    delta: dict[str, int | None] = {}
     for key in MATCH_COUNTERS:
         before, after = old.get(key), new.get(key)
         if not isinstance(before, int) or not isinstance(after, int):
+            delta[key] = None
+        elif after < before:
             return None
-        if after < before:
-            return None
-        delta[key] = after - before
-    if delta["matches"] <= 0:
-        return None
+        else:
+            delta[key] = after - before
     result = None
     if delta["matches"] == 1:
         if delta["wins"] == 1:
@@ -199,6 +205,8 @@ class Bf6PlayerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._profile_at: datetime | None = None
         # Die letzte Abfrage hatte gesunkene Zaehler und wurde verworfen.
         self._drop_pending = False
+        # Zaehler, deren Fehlen im Ereignis schon gemeldet wurde
+        self._missing_reported: set[str] = set()
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
@@ -218,11 +226,28 @@ class Bf6PlayerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.events_serial += 1
         if self.data is not None and (match := match_event(self.data["stats"], stats)):
             self.events.append((EVENT_MATCH_FINISHED, match))
+            self._report_missing(match)
         if self.data is not None and (
             rank := rank_event(previous_profile, self._profile)
         ):
             self.events.append((EVENT_RANK_UP, rank))
         return {"stats": stats, "profile": self._profile}
+
+    def _report_missing(self, match: dict[str, Any]) -> None:
+        """Fehlende Zaehler im Ereignis einmal je Zaehler melden (seit 0.6.11)."""
+        missing = [
+            key
+            for key in MATCH_COUNTERS
+            if match[key] is None and key not in self._missing_reported
+        ]
+        if missing:
+            self._missing_reported.update(missing)
+            _LOGGER.warning(
+                'Spieler %s: %s fehlen in der Antwort; "Match beendet" ohne '
+                "diese Werte",
+                self.subentry.data[CONF_PERSONA_ID],
+                ", ".join(missing),
+            )
 
     def _hold_drop(self, stats: dict[str, Any]) -> dict[str, Any]:
         """Gesunkene Zaehler erst uebernehmen, wenn die naechste Abfrage sie

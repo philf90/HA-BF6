@@ -195,7 +195,7 @@ async def test_private_profile_rank(
         "image", DOMAIN, "1000000001-rank_badge"
     )
     image = hass.data["entity_components"]["image"].get_entity(entity_id)
-    assert image.image_url == "https://cdn.gametools.network/ranks/bf6/p_lg.png"
+    assert image.badge_url == "https://cdn.gametools.network/ranks/bf6/p_lg.png"
 
 
 async def test_profile_only_hourly(
