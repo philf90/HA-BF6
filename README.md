@@ -78,7 +78,8 @@ ist kein Produkt von EA, DICE oder Community Network. Fragen zur API:
 ## Aufbau
 
 - **Haupteintrag „gametools API“** (seit 0.1.0): einmalig, ohne Zugangsdaten.
-  Später mit den Optionen für Takte und Gruppen.
+  Seit 0.5.0 mit Optionen für die Takte; abschaltbare Gruppen gibt es nicht
+  (siehe [Optionen, Aktionen, Diagnose](#optionen-aktionen-diagnose)).
 - **Untereintrag je Spieler** (seit 0.3.0): Name suchen, Konto aus der
   Trefferliste wählen. Gespeichert werden Persona-ID, Nucleus-ID und Plattform,
   weil Namen nicht eindeutig sind. Jeder Spieler ist ein eigenes Gerät
