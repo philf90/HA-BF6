@@ -30,7 +30,7 @@ _BATTLE_PASS = re.compile(r"^BP(\d+)$")
 
 
 def _int(value: Any) -> int | None:
-    """Ganzzahl auch aus Text ("794397421"), sonst None; bool zaehlt nicht."""
+    """Ganzzahl auch aus Text ("1000000001"), sonst None; bool zaehlt nicht."""
     if isinstance(value, bool):
         return None
     if isinstance(value, int):

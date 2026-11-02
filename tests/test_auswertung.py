@@ -162,7 +162,7 @@ def test_portal_status() -> None:
 
 @pytest.mark.parametrize(
     ("value", "expected"),
-    [("794397421", 794397421), (12, 12), (12.0, 12), (True, None), ("x", None)],
+    [("1000000001", 1000000001), (12, 12), (12.0, 12), (True, None), ("x", None)],
 )
 def test_int(value, expected) -> None:
     assert parsers._int(value) == expected
