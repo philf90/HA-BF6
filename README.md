@@ -20,6 +20,11 @@ Version 0.6.4.
 > [Dashboard-Karten](#dashboard-karten) im Nachtblau-Stil. Den Plan zeigt
 > die Recherche in [`docs/bf6-api-recherche.html`](docs/bf6-api-recherche.html).
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/philf90/HA-BF6/main/assets/vorschau-karten.png" alt="Karten Klassen, Spielwelt, Spieler, Squad, Karten und Verlauf im Nachtblau-Stil mit Beispieldaten" width="100%">
+</p>
+<p align="center"><sub>Klassen, Spielwelt, Spieler, Squad, Karten und Verlauf · Beispieldaten</sub></p>
+
 > **KI-Hinweis:** Dieses Projekt entsteht mit Claude Code. Code, Tests und
 > Dokumentation schreibt die KI; Details im Abschnitt [KI-Hinweis](#ki-hinweis).
 
@@ -542,20 +547,26 @@ Versionshinweise dazu. Lokal: `PR_BODY="$(cat beschreibung.md)" python3
 **Releases** entstehen mit dem Workflow „Release“ aus einem Tag `v<Version>`
 oder von Hand; der Text kommt aus `.github/release-notes/v<Version>.md`.
 
-## Banner und Social Preview
+## Banner, Social Preview und Vorschaubild
 
 - Banner oben im README: `assets/banner.png`, 2560 × 512 px wie bei WoW
   Charakter. Social Preview des Repos (Bild für geteilte Links):
   `assets/social-preview.png`, 1280 × 640 px; hochgeladen wird es von Hand
   unter Settings → General → Social preview.
-- Beide sind aus `assets/banner-quelle/` gerendert: Erkennungsmarke mit
-  Fadenkreuz (eigenes Motiv), Titel und die echten Karten „BF6 Klassen“,
-  „BF6 Spieler“ und „BF6 Karten“ mit erfundenen Daten (Spieler
-  „Nachtfalke“, `daten.js`). Kein Battlefield-Logo, keine Schrift und keine
-  Grafik aus dem Spiel. Schriften Saira Condensed und Inter (SIL Open Font
-  License) von Google Fonts, Icons aus Material Design Icons 7.4.47
-  (Pictogrammers Free License, Icons unter Apache 2.0) von jsDelivr, Farben
-  aus der Nachtblau-Palette.
+- Vorschaubild unter der Einleitung: `assets/vorschau-karten.png`,
+  2480 × 1660 px, aufgebaut wie bei WoW Charakter: sechs Karten in drei
+  Spalten bei 344 px Breite (Klassen und Spielwelt, Spieler und Squad,
+  Karten und Verlauf). Die Arsenal-Karte fehlt, weil ihre Waffen- und
+  Fahrzeugbilder Spielgrafik sind; „BF6 Modi“ ähnelt „BF6 Karten“.
+- Alle drei sind aus `assets/banner-quelle/` gerendert: `index.html` für
+  Banner und Social Preview (Erkennungsmarke mit Fadenkreuz als eigenes
+  Motiv, Titel, drei aufgefächerte Karten), `vorschau.html` für das
+  Vorschaubild. Die Karten sind die echten Karten der Integration mit
+  erfundenen Daten (Spieler „Nachtfalke“ und „Eisvogel“, `daten.js`). Kein
+  Battlefield-Logo, keine Schrift und keine Grafik aus dem Spiel. Schriften
+  Saira Condensed und Inter (SIL Open Font License) von Google Fonts, Icons
+  aus Material Design Icons 7.4.47 (Pictogrammers Free License, Icons unter
+  Apache 2.0) von jsDelivr, Farben aus der Nachtblau-Palette.
 - Neu rendern nach einer Änderung an den Karten oder der Quelle: im
   Wurzelverzeichnis `python3 -m http.server 8000 --bind 127.0.0.1`, dann
   `node assets/banner-quelle/render.js` (Playwright mit Chromium, braucht
@@ -565,11 +576,12 @@ oder von Hand; der Text kommt aus `.github/release-notes/v<Version>.md`.
 
 Dieses Projekt wird mit [Claude Code](https://claude.com/claude-code) entwickelt,
 einem KI-Assistenten von Anthropic. Recherche, Code, Tests, Dokumentation,
-Banner und Social Preview erstellt die KI im Auftrag und unter Anleitung des Repo-Inhabers. Geprüft wird
-mit automatischen Tests (`pytest`) und `ruff`, mit Gegenproben und im Betrieb in
-einer echten Home-Assistant-Instanz (Stand im Abschnitt „Teststand“).
-Endpunkte und Feldnamen stammen aus der OpenAPI der gametools API und aus
-echten Antworten vom 01.11.2026 (siehe `docs/bf6-api-recherche.html`).
+Banner, Social Preview und Vorschaubild erstellt die KI im Auftrag und unter
+Anleitung des Repo-Inhabers. Geprüft wird mit automatischen Tests (`pytest`) und
+`ruff`, mit Gegenproben und im Betrieb in einer echten Home-Assistant-Instanz
+(Stand im Abschnitt „Teststand“). Endpunkte und Feldnamen stammen aus der
+OpenAPI der gametools API und aus echten Antworten vom 01.11.2026 (siehe
+`docs/bf6-api-recherche.html`).
 
 ## Lizenz
 

@@ -6,13 +6,10 @@ const F = new URLSearchParams(location.search).get("f") || "banner";
 const S = F === "social";
 document.body.className = F;
 
-// Material Design Icons 7.4.47 (wie Home Assistant): nur die genutzten Pfade
-const ICONS = ["mdiCrosshairsGps", "mdiAccount", "mdiAccountTie", "mdiMap", "mdiSteam"];
-const mdi = await (await fetch("https://cdn.jsdelivr.net/npm/@mdi/js@7.4.47/mdi.js")).text();
-for (const n of ICONS) {
-  window.MDI[n] = new RegExp(`export var ${n} = "([^"]+)"`).exec(mdi)[1];
-}
-const { hass } = await import("./daten.js");
+import { ladeIcons, karte as setzeKarte } from "./platzhalter.js";
+import { hass } from "./daten.js";
+
+await ladeIcons();
 
 const rahmen = document.createElement("div");
 rahmen.className = "rahmen";
@@ -51,17 +48,7 @@ function titelblock(x, y, g) {
     </div>`, { left: x + "px", top: y + "px" });
 }
 
-async function karte(typ, cfg, stil) {
-  await import(`../../custom_components/bf6_player/frontend/${typ}.js?v=banner`);
-  const k = document.createElement(typ);
-  k.setConfig({ type: `custom:${typ}`, ...cfg });
-  k.hass = hass;
-  const h = document.createElement("div");
-  h.className = "karte";
-  Object.assign(h.style, stil);
-  h.appendChild(k);
-  rahmen.appendChild(h);
-}
+const karte = (typ, cfg, stil) => setzeKarte(rahmen, typ, cfg, hass, stil);
 
 const E = "sensor.nachtfalke_kills";
 if (!S) {
