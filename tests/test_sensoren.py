@@ -8,7 +8,6 @@ from freezegun.api import FrozenDateTimeFactory
 from homeassistant.config_entries import ConfigSubentryData
 from homeassistant.const import STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import (
     MockConfigEntry,
@@ -24,6 +23,7 @@ from .conftest import (
     PROFILE_REDUZIERT,
     STATS,
     STATS_EMPTY,
+    device_of,
     main_entry,
     mock_world,
     player_subentry,
@@ -112,7 +112,8 @@ async def test_sensor_values(hass: HomeAssistant, aioclient_mock: AiohttpClientM
 async def test_device(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker):
     _mock(aioclient_mock)
     entry = await _setup(hass)
-    device = dr.async_get(hass).async_get_device({(DOMAIN, "1000000001")})
+    device = device_of(hass, "1000000001-kills")
+    assert (DOMAIN, "1000000001") in device.identifiers
     assert device.name == "Testspieler"
     assert device.manufacturer == "Electronic Arts"
     assert device.model == "Battlefield 6 · EA app"

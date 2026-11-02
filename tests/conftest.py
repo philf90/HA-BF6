@@ -2,6 +2,9 @@
 
 import pytest
 from homeassistant.config_entries import ConfigSubentryData
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.bf6_player.const import DOMAIN, MAIN_TITLE, SUBENTRY_PLAYER
@@ -24,6 +27,20 @@ def auto_mock_world(request, aioclient_mock):
         mock_world(aioclient_mock)
         # Profil der Spieler; die Statistik baut jeder Test selbst nach.
         aioclient_mock.get("https://api.gametools.network/bf6/profile/", json=PROFILE)
+
+
+def device_of(hass: HomeAssistant, unique_id: str, platform: str = "sensor"):
+    """Geraet einer Entitaet der Integration, ueber die Entity-Registry.
+
+    device_registry.async_get_device ist seit Home Assistant 2026.10
+    abgekuendigt (Tests scheitern dort mit RuntimeError); der Ersatz
+    async_get_device_by_identifier fehlt in 2026.2.3. Der Weg ueber die
+    Entitaet geht in beiden Versionen, gegen die die CI testet (0.6.9).
+    """
+    entities = er.async_get(hass)
+    entity_id = entities.async_get_entity_id(platform, DOMAIN, unique_id)
+    device_id = entities.async_get(entity_id).device_id
+    return dr.async_get(hass).async_get(device_id)
 
 
 def main_entry(*subentries: ConfigSubentryData) -> MockConfigEntry:
