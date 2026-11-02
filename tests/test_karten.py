@@ -202,17 +202,22 @@ def test_light_outline_only_dark_and_only_thumbnails() -> None:
     assert not re.search(r"\.symbol img \{[^}]*LICHTRAND", COMMON)
 
 
-def test_inline_icons_use_ha_alignment() -> None:
-    """Symbole im Text (Plattform im Kopf, Squad-Zeilen) behalten die
-    Ausrichtung von ha-svg-icon (inline-flex, vertical-align: middle). Ein
-    eigenes vertical-align am ha-icon setzte sie bis 0.6.5 um 2 px zu tief
-    (gemessen: Glyphenmitte 1,4 statt 3,4 px ueber der Grundlinie, Mitte der
-    x-Hoehe 3,5 px)."""
-    regeln = 0
+def test_inline_icons_centered_on_capitals() -> None:
+    """Symbole im Text (Plattform im Kopf, Squad-Zeilen) sitzen mittig auf
+    Grossbuchstaben und Ziffern. ha-svg-icon richtet mit vertical-align:
+    middle auf die Mitte der Kleinbuchstaben aus; mit Roboto (Schrift von
+    Home Assistant) lag die Symbolmitte so 1,1-1,3 px unter der Mitte der
+    Versalien (0.6.6, Screenshot vom 02.11.2026). 0,09 em hebt sie bei
+    12-12,5 px Schrift um 1,1 px; bis 0.6.5 senkte -2px sie zusaetzlich."""
+    hebung = "vertical-align: 0.09em;"
+    inline = 0
     for datei in CARD_DIR.glob("*.js"):
         for zeile in datei.read_text(encoding="utf-8").splitlines():
-            if re.search(r"ha-icon \{", zeile):
-                regeln += 1
+            if not re.search(r"ha-icon \{", zeile):
+                continue
+            if re.search(r"\.(label|zi) ha-icon \{", zeile):
+                inline += 1
+                assert hebung in zeile, (datei.name, zeile.strip())
+            else:
                 assert "vertical-align" not in zeile, (datei.name, zeile.strip())
-    assert regeln >= 3
-    assert re.search(r"\.label ha-icon \{ --mdc-icon-size: 14px; color", COMMON)
+    assert inline == 2

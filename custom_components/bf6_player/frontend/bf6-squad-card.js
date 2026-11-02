@@ -39,7 +39,7 @@ class Bf6SquadCard extends C.Bf6Card {
     .sq .w { justify-self: end; font-size: 14px; font-weight: 750; font-variant-numeric: tabular-nums; white-space: nowrap; }
     .sq .h { justify-self: end; font-size: 12px; color: ${C.FARBEN.sek}; white-space: nowrap; }
     .sq .zi { grid-column: 1 / -1; }
-    .sq .zi ha-icon { --mdc-icon-size: 14px; color: ${C.FARBEN.label}; }
+    .sq .zi ha-icon { --mdc-icon-size: 14px; vertical-align: 0.09em; color: ${C.FARBEN.label}; }
     @container (max-width: 327px) { .sq { grid-template-columns: minmax(0, 1fr) repeat(3, 48px); gap: 2px 6px; } }
   `;
 
