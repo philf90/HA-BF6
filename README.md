@@ -7,11 +7,12 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.3.1.
+Version 0.4.0.
 
-> **Stand:** Version 0.3.1: Spieler lassen sich am Eintrag „gametools API“
-> hinzufügen (siehe [Installation](#installation)). Geräte und Sensoren je
-> Spieler gibt es noch nicht; sie kommen mit 0.4.0. Den Plan zeigt die Recherche in
+> **Stand:** Version 0.4.0: Spieler lassen sich am Eintrag „gametools API“
+> hinzufügen (siehe [Installation](#installation)); jeder Spieler ist ein
+> Gerät mit 20 Sensoren (siehe [Entitäten je Spieler](#entitäten-je-spieler)).
+> Karten, Ereignisse und Rang-Bild folgen. Den Plan zeigt die Recherche in
 > [`docs/bf6-api-recherche.html`](docs/bf6-api-recherche.html).
 
 > **KI-Hinweis:** Dieses Projekt entsteht mit Claude Code. Code, Tests und
@@ -79,13 +80,51 @@ ist kein Produkt von EA, DICE oder Community Network. Fragen zur API:
   Später mit den Optionen für Takte und Gruppen.
 - **Untereintrag je Spieler** (seit 0.3.0): Name suchen, Konto aus der
   Trefferliste wählen. Gespeichert werden Persona-ID, Nucleus-ID und Plattform,
-  weil Namen nicht eindeutig sind. Ab 0.4.0 wird jeder Spieler ein eigenes
-  Gerät.
-- **Plattform-Symbole** (geplant ab 0.4.0, für Entitäten und Karten): Home
-  Assistant bringt MDI 7.4.47 mit; darin gibt es `mdi:steam`,
-  `mdi:sony-playstation`, `mdi:microsoft-xbox` und `mdi:microsoft-windows`.
-  Für EA app und Epic Games gibt es dort kein Symbol.
+  weil Namen nicht eindeutig sind. Jeder Spieler ist ein eigenes Gerät
+  (seit 0.4.0, Hersteller „Electronic Arts“, Modell „Battlefield 6 ·
+  Plattform“) mit eigener Abfrage. Fällt die Abfrage eines Spielers aus,
+  sind nur seine Entitäten nicht verfügbar. Ein neuer oder gelöschter
+  Spieler lädt den Eintrag neu, Umbenennen nicht.
+- **Plattform-Symbole** (seit 0.4.0): Home Assistant bringt MDI 7.4.47 mit;
+  daraus `mdi:steam`, `mdi:sony-playstation`, `mdi:microsoft-xbox` und
+  `mdi:microsoft-windows`. Für EA app und Epic Games gibt es dort kein
+  Symbol; sie bekommen den Controller `mdi:gamepad-variant`.
 - **Gerät „BF6-Spielwelt“** (geplant): Saison, Battle Pass und Portal-Server.
+
+## Entitäten je Spieler
+
+Seit 0.4.0. Zähler als `total_increasing`, Quoten als `measurement`: Home
+Assistant führt für beide Langzeitstatistiken, daraus entstehen Verläufe ab
+der Installation.
+
+| Wert | Typ | Takt | Quelle (Endpunkt, Feld) |
+|---|---|---|---|
+| Kills, Tode, Assists, Wiederbelebungen | Sensoren, Zähler | 15 min | `/bf6/stats/`, `kills`, `deaths`, `assists`, `revives` |
+| Matches, Siege, Niederlagen | Sensoren, Zähler | 15 min | `matchesPlayed`, `wins`, `loses` |
+| XP | Sensor, Zähler | 15 min | `XP[0].total` |
+| Spielzeit | Sensor, Dauer in Stunden | 15 min | `secondsPlayed` |
+| K/D, Kills pro Minute | Sensoren | 15 min | selbst gerechnet: Kills ÷ Tode, Kills ÷ Spielminuten |
+| Siegquote, Treffergenauigkeit, Headshot-Quote, Kills gegen Menschen | Sensoren in % | 15 min | selbst gerechnet: Siege ÷ Matches, Treffer ÷ Schüsse, Headshots ÷ Kills, `dividedKills.human` ÷ Kills |
+| Rang (Rangname, Dog Tags, Abzeichen, Rang-Bild, Ranked-Rang als Attribute) | Sensor | 60 min | `/bf6/profile/`, `playerCard.rank`, `rankName`, `totalDogTags`, `badgeSummary.totalBadges`, `playerCard.rankImage.large`, `competitiveRanks` |
+| Meistgespielte Klasse | Sensor (Text) | 15 min | `classes[]` mit der längsten Spielzeit |
+| Top-Waffe, Top-Fahrzeug (Top 5 als Attribut `top`) | Sensoren (Text) | 15 min | `weapons[]`, `vehicles[]` nach Kills |
+| Plattform | Sensor (Diagnose), Symbol je Plattform | gespeichert | aus dem Dialog „Spieler hinzufügen“ |
+
+- **Takt:** Statistik alle 15 Minuten; die API cacht Antworten 600 s, öfter
+  bringt keine neueren Werte. Profil stündlich; scheitert es, bleibt der
+  letzte Stand und die Statistik läuft weiter. Höchstens zwei Spieler
+  werden gleichzeitig abgefragt.
+- **Nicht verfügbar** sind die Entitäten eines Spielers, wenn die API nicht
+  antwortet oder zu seinem Konto keine Statistik liefert (`hasResults:
+  false`). Die Plattform bleibt sichtbar.
+- **Entity-IDs** entstehen aus dem Spielernamen und dem Namen des Sensors in
+  der Sprache der Oberfläche, z. B. `sensor.testspieler_kills`.
+
+### Nicht in der Datenbank
+
+Diese Attribute stehen am Sensor, gehen aber nicht in den Verlauf (Listen und
+Adressen, 16-KB-Grenze des Recorders): `top` (Top-Waffe, Top-Fahrzeug),
+`ranked` und `rank_image` (Rang).
 
 ## Abfragen und Auswertung
 
@@ -146,6 +185,14 @@ wird vor dem Einsetzen in HTML maskiert. Namen erscheinen nicht im Log.
 Automatische Tests laufen gegen Home Assistant 2026.2.3
 (`pytest-homeassistant-custom-component` 0.13.316).
 
+- **0.4.x:** 131 automatische Tests. 0.4.0: Sensorwerte, Einheiten und
+  Zustandsklassen, Gerät und Zuordnung zum Spieler, API-Fehler, keine
+  Statistik, ein Spieler fällt aus und der andere läuft weiter, Profilfehler,
+  Profil nur stündlich, Neuladen bei neuem Spieler und nicht beim
+  Umbenennen, Entladen, Symbole und Übersetzungen. Gegenprobe: Takt des
+  Profils, Prüfung auf `hasResults`, Neuladen nur bei neuen Spielern,
+  Plattform bleibt verfügbar und Profilfehler behalten einzeln entfernt –
+  jedes Mal schlug ein Test fehl. Nicht live geprüft.
 - **0.3.x:** 120 automatische Tests. 0.3.1: Plattform im Titel neuer und
   alter Spieler, umbenannte Spieler bleiben (2 Tests). 0.3.0 **live geprüft**
   (02.11.2026, iOS-App, Home Assistant 2026.10.4): Installation über HACS als
