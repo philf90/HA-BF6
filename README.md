@@ -7,9 +7,9 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.3.0.
+Version 0.3.1.
 
-> **Stand:** Version 0.3.0: Spieler lassen sich am Eintrag „gametools API“
+> **Stand:** Version 0.3.1: Spieler lassen sich am Eintrag „gametools API“
 > hinzufügen (siehe [Installation](#installation)). Geräte und Sensoren je
 > Spieler gibt es noch nicht; sie kommen mit 0.4.0. Den Plan zeigt die Recherche in
 > [`docs/bf6-api-recherche.html`](docs/bf6-api-recherche.html).
@@ -57,7 +57,9 @@ Karten dem Nachtblau-Stil aus
    Statistik ab; kennt die API zu dem Konto keine BF6-Werte, meldet der Dialog
    das und legt nichts an. Gespeichert werden Persona-ID, Nucleus-ID und
    Plattform, nicht der Name: Namen sind nicht eindeutig (am 01.11.2026 zwei
-   Steam-Konten mit demselben Namen und völlig anderen Werten).
+   Steam-Konten mit demselben Namen und völlig anderen Werten). In der Liste
+   heißt der Spieler „Name · Plattform“, z. B. „Testspieler · Steam“ (seit
+   0.3.1); ein eigenes Symbol je Spieler zeigt Home Assistant dort nicht an.
 
 ## Datenquelle
 
@@ -79,6 +81,10 @@ ist kein Produkt von EA, DICE oder Community Network. Fragen zur API:
   Trefferliste wählen. Gespeichert werden Persona-ID, Nucleus-ID und Plattform,
   weil Namen nicht eindeutig sind. Ab 0.4.0 wird jeder Spieler ein eigenes
   Gerät.
+- **Plattform-Symbole** (geplant ab 0.4.0, für Entitäten und Karten): Home
+  Assistant bringt MDI 7.4.47 mit; darin gibt es `mdi:steam`,
+  `mdi:sony-playstation`, `mdi:microsoft-xbox` und `mdi:microsoft-windows`.
+  Für EA app und Epic Games gibt es dort kein Symbol.
 - **Gerät „BF6-Spielwelt“** (geplant): Saison, Battle Pass und Portal-Server.
 
 ## Abfragen und Auswertung
@@ -140,7 +146,11 @@ wird vor dem Einsetzen in HTML maskiert. Namen erscheinen nicht im Log.
 Automatische Tests laufen gegen Home Assistant 2026.2.3
 (`pytest-homeassistant-custom-component` 0.13.316).
 
-- **0.3.x:** 118 automatische Tests. 0.3.0: Dialog „Spieler hinzufügen“
+- **0.3.x:** 120 automatische Tests. 0.3.1: Plattform im Titel neuer und
+  alter Spieler, umbenannte Spieler bleiben (2 Tests). 0.3.0 **live geprüft**
+  (02.11.2026, iOS-App, Home Assistant 2026.10.4): Installation über HACS als
+  v0.3.0, Symbol angezeigt, ein Steam-Spieler mit Sonderzeichen im Namen
+  hinzugefügt und korrekt angezeigt. 0.3.0: Dialog „Spieler hinzufügen“
   (Suche, Auswahl, Prüfung der Statistik, schon eingerichtete Konten, keine
   Treffer, 404, Verbindungsfehler, Eintrag nicht geladen, Zeile der
   Auswahlliste) und [Sicherheit](#sicherheit) (ungültige Namen, Sonderzeichen

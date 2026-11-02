@@ -54,3 +54,13 @@ NAME_MAX = 64
 # Bildserver, von denen die API Bilder nennt (Waffen, Fahrzeuge, Gadgets,
 # Rang-Abzeichen; alle in den Antworten vom 01./02.11.2026).
 IMAGE_HOSTS = frozenset({"cdn.gametools.network"})
+
+
+def player_title(name: str, platform: str) -> str:
+    """Titel eines Spielers, z. B. "Name · Steam".
+
+    Die Liste der Untereintraege zeigt nur Titel und Typ, kein eigenes Symbol
+    (Frontend, ha-config-sub-entry-row.ts); die Plattform steht deshalb im
+    Titel.
+    """
+    return f"{name} · {PLATFORM_NAMES.get(platform, platform)}"

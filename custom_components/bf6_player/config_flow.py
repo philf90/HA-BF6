@@ -42,6 +42,7 @@ from .const import (
     PLATFORM_NAMES,
     SEARCH_LIMIT,
     SUBENTRY_PLAYER,
+    player_title,
 )
 
 NAME_SCHEMA = vol.Schema({vol.Required(CONF_NAME): TextSelector()})
@@ -198,7 +199,9 @@ class PlayerSubentryFlow(ConfigSubentryFlow):
                     errors["base"] = "no_stats"
                 else:
                     return self.async_create_entry(
-                        title=account["name"] or self._name,
+                        title=player_title(
+                            account["name"] or self._name, account["platform"]
+                        ),
                         data={
                             CONF_NAME: account["name"] or self._name,
                             CONF_PERSONA_ID: account["persona_id"],

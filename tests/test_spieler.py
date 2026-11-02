@@ -60,7 +60,7 @@ async def test_add_player(hass: HomeAssistant, aioclient_mock: AiohttpClientMock
     assert result["type"] is FlowResultType.CREATE_ENTRY
     subentry = next(iter(entry.subentries.values()))
     assert subentry.subentry_type == SUBENTRY_PLAYER
-    assert subentry.title == "Testspieler"
+    assert subentry.title == "Testspieler · EA app"
     assert subentry.unique_id == "1000000001"
     assert dict(subentry.data) == {
         "name": "Testspieler",
@@ -266,5 +266,5 @@ async def test_api_name_cleaned(
         result["flow_id"], {"account": "1000000001"}
     )
     subentry = next(iter(entry.subentries.values()))
-    assert subentry.title == "BöserName <b>"
+    assert subentry.title == "BöserName <b> · EA app"
     assert subentry.data["name"] == "BöserName <b>"
