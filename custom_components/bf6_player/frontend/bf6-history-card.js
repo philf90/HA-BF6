@@ -215,17 +215,21 @@ class Bf6HistoryCard extends C.Bf6Card {
         })
         .join("");
     } else {
-      const spanne = max - min || 1;
-      const y = (v) => (H - rand - ((v - min) / spanne) * (H - 2 * rand)).toFixed(2);
-      const x = (i) => (punkte.length === 1 ? B / 2 : (i / (punkte.length - 1)) * B).toFixed(2);
-      const linie = punkte.map((p, i) => `${x(i)},${y(p.v)}`).join(" ");
+      // Gleiche Werte (auch ein einziger Wert) als waagrechte Linie in der
+      // Mitte; eine Polylinie aus nur einem Punkt waere unsichtbar (live am
+      // 02.11.2026: am ersten Tag gibt es genau einen Tageswert).
+      const spanne = max - min;
+      const y = (v) => (spanne ? H - rand - ((v - min) / spanne) * (H - 2 * rand) : H / 2).toFixed(2);
+      const x = (i) => ((i / (punkte.length - 1)) * B).toFixed(2);
+      const linie =
+        punkte.length === 1 ? `0,${y(punkte[0].v)} ${B},${y(punkte[0].v)}` : punkte.map((p, i) => `${x(i)},${y(p.v)}`).join(" ");
       const breite = B / punkte.length;
       marken =
         `<polyline class="linie" vector-effect="non-scaling-stroke" points="${linie}"></polyline>` +
         punkte
           .map(
             (p, i) =>
-              `<rect class="treffer" x="${Math.max(0, x(i) - breite / 2).toFixed(2)}" y="0" width="${breite.toFixed(2)}" height="${H}"><title>${esc(`${datum(p.t)}: ${text(p.v)}`)}</title></rect>`
+              `<rect class="treffer" x="${(punkte.length === 1 ? 0 : Math.max(0, x(i) - breite / 2)).toFixed(2)}" y="0" width="${breite.toFixed(2)}" height="${H}"><title>${esc(`${datum(p.t)}: ${text(p.v)}`)}</title></rect>`
           )
           .join("");
     }
