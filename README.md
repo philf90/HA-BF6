@@ -11,9 +11,9 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.6.9.
+Version 0.6.10.
 
-> **Stand:** Version 0.6.9: Jeder Spieler ist ein Gerät mit 20 Sensoren,
+> **Stand:** Version 0.6.10: Jeder Spieler ist ein Gerät mit 20 Sensoren,
 > Rang-Abzeichen und den Ereignissen „Match beendet“ und „Rang gestiegen“
 > (siehe [Entitäten je Spieler](#entitäten-je-spieler)); dazu das Gerät
 > „BF6-Spielwelt“, Aktionen, Optionen, Diagnose, Reparaturhinweis und acht
@@ -394,6 +394,11 @@ und `'` ersetzt, bevor er in HTML landet. Bilder zeigen die Karten nur von
 enthielte. Geprüft in Chromium mit dem Namen `<img src=x
 onerror=alert(1)>` und einer Waffe `<script>alert(1)</script>`: beide als
 Text sichtbar, kein Skript, kein fremdes Bild. Namen erscheinen nicht im Log.
+Zahlen aus Attributen, die in ein HTML-Attribut gehen (z. B. Balkenbreiten),
+sind immer das Ergebnis einer Rechnung oder von `Number()`; bis 0.6.9 setzte
+die Klassen-Karte die Spielzeit ungeprüft in `style="flex:…"`. Seit 0.6.10
+rendert ein automatischer Test jede Karte in Node.js mit dem Wert
+`"><img src=x onerror=alert(1)>` in allen Namen, Texten und der Spielzeit.
 
 ## Grenzen
 
@@ -408,8 +413,18 @@ Automatische Tests laufen gegen zwei Versionen von Home Assistant: die
 Mindestversion 2026.2.3 (`pytest-homeassistant-custom-component` 0.13.316,
 Python 3.13) und seit 0.6.9 die aktuelle 2026.10.4 (0.13.375, Python 3.14).
 
-- **0.6.x:** 261 automatische Tests, grün gegen Home Assistant 2026.2.3 und
-  2026.10.4. 0.6.9: Start wartet höchstens 10 s auf die ersten Abfragen,
+- **0.6.x:** 282 automatische Tests, grün gegen Home Assistant 2026.2.3 und
+  2026.10.4. 0.6.10: Die Karten bauen den Index der Spieler und der
+  Spielwelt nur neu, wenn sich die Registries ändern (`hass.entities`,
+  `hass.devices`), nicht bei jeder Zustandsänderung. Gezählt in Node.js mit
+  8 Karten und 100 Zustandsänderungen: vorher 800 Durchläufe aller
+  Entitäten, jetzt 0; gemessen bei 5.000 fremden Entitäten: vorher
+  1,3–1,7 ms je Karte und Änderung (Squad-Karte mit 4 Spielern 5,1–5,4 ms),
+  jetzt unter 0,011 ms. Klassen-Karte: Spielzeit nur als Zahl in `style`.
+  Neuer Test `test_karten_verhalten.py` führt alle 8 Karten in Node.js aus
+  (normale Werte, Werte mit HTML, Index). Gegenprobe: Klassen-Karte aus
+  0.6.9 (2 Tests schlagen fehl), `bf6-common.js` aus 0.6.9 (2 Tests),
+  Listen nicht eingefroren (1 Test). 0.6.9: Start wartet höchstens 10 s auf die ersten Abfragen,
   danach laufen sie als Hintergrund-Tasks des Eintrags weiter und enden mit
   ihm; ein gesunkener Zähler gilt erst, wenn die nächste Abfrage ihn
   bestätigt. CI testet zusätzlich gegen Home Assistant 2026.10.4; dort ist
@@ -614,6 +629,10 @@ pip install pytest-homeassistant-custom-component==0.13.375
 
 Dieselben Schritte laufen bei jedem Push auf `main` und jedem Pull Request im
 Workflow „Pruefung“, zusammen mit hassfest und der HACS-Prüfung.
+
+`tests/test_karten_verhalten.py` braucht Node.js (seit 0.6.10): Es führt die
+Karten über `tests/karten_lauf.mjs` aus. Fehlt Node.js, überspringt pytest
+diese Tests lokal; in der CI (Variable `CI`) schlagen sie dann fehl.
 
 `tests/test_repo_konsistenz.py` prüft, dass Version, README (auch die Testzahl
 oben im Teststand), Versionshinweise, Übersetzungen und Manifest zusammenpassen.
