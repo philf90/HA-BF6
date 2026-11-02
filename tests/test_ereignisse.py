@@ -10,10 +10,18 @@ from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
 
+from custom_components.bf6_player import parsers
 from custom_components.bf6_player.const import DOMAIN
 from custom_components.bf6_player.coordinator import match_event, rank_event
 
-from .conftest import PROFILE, STATS, main_entry, mock_world, player_subentry
+from .conftest import (
+    PROFILE,
+    PROFILE_REDUZIERT,
+    STATS,
+    main_entry,
+    mock_world,
+    player_subentry,
+)
 
 BASE = "https://api.gametools.network"
 STATS_URL = f"{BASE}/bf6/stats/"
@@ -161,3 +169,12 @@ def test_rank_event_rules() -> None:
     assert rank_event({"rank": 6}, {"rank": 6}) is None
     assert rank_event({"rank": 6}, {"rank": 5}) is None
     assert rank_event(None, {"rank": 6}) is None
+
+
+def test_rank_event_private_profile() -> None:
+    """Auch aus der verkuerzten Antwort eines privaten Kontos (0.6.5)."""
+    vorher = parsers.player_profile(PROFILE_REDUZIERT)
+    hoeher = copy.deepcopy(PROFILE_REDUZIERT)
+    hoeher["other"][0]["playerProfiles"][0]["rank"] = 78
+    event = rank_event(vorher, parsers.player_profile(hoeher))
+    assert event == {"previous_rank": 77, "rank": 78, "rank_name": "Testoberst"}

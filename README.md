@@ -11,9 +11,9 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.6.4.
+Version 0.6.5.
 
-> **Stand:** Version 0.6.4: Jeder Spieler ist ein Gerät mit 20 Sensoren,
+> **Stand:** Version 0.6.5: Jeder Spieler ist ein Gerät mit 20 Sensoren,
 > Rang-Abzeichen und den Ereignissen „Match beendet“ und „Rang gestiegen“
 > (siehe [Entitäten je Spieler](#entitäten-je-spieler)); dazu das Gerät
 > „BF6-Spielwelt“, Aktionen, Optionen, Diagnose, Reparaturhinweis und acht
@@ -63,7 +63,10 @@ Karten dem Nachtblau-Stil aus
    PlayStation- oder Xbox-Name), höchstens 64 Zeichen; Sonderzeichen sind
    erlaubt (siehe [Sicherheit](#sicherheit)). Die Liste zeigt alle Konten mit diesem Namen,
    die noch nicht eingerichtet sind, je Zeile Name, Plattform und das Datum, an
-   dem das Konto angelegt wurde; 🔒 kennzeichnet ein nicht öffentliches Konto.
+   dem das Konto angelegt wurde; 🔒 kennzeichnet ein Konto, dessen
+   Sichtbarkeit bei EA nicht „EVERYONE“ ist. Ein im Spiel privat gestelltes
+   Profil erkennt man daran nicht (siehe
+   [Private Profile](#abfragen-und-auswertung)).
    Das richtige Konto wählen. Vor dem Anlegen fragt die Integration die
    Statistik ab; kennt die API zu dem Konto keine BF6-Werte, meldet der Dialog
    das und legt nichts an. Gespeichert werden Persona-ID, Nucleus-ID und
@@ -118,7 +121,7 @@ der Installation.
 | Spielzeit | Sensor, Dauer in Stunden | 15 min | `secondsPlayed` |
 | K/D, Kills pro Minute | Sensoren | 15 min | selbst gerechnet: Kills ÷ Tode, Kills ÷ Spielminuten |
 | Siegquote, Treffergenauigkeit, Headshot-Quote, Kills gegen Menschen | Sensoren in % | 15 min | selbst gerechnet: Siege ÷ Matches, Treffer ÷ Schüsse, Headshots ÷ Kills, `dividedKills.human` ÷ Kills |
-| Rang (Rangname, Dog Tags, Abzeichen, Rang-Bild, Ranked-Rang als Attribute) | Sensor | 60 min | `/bf6/profile/`, `playerCard.rank`, `rankName`, `totalDogTags`, `badgeSummary.totalBadges`, `playerCard.rankImage.large`, `competitiveRanks` |
+| Rang (Rangname, Dog Tags, Abzeichen, Rang-Bild, Ranked-Rang als Attribute) | Sensor | 60 min | `/bf6/profile/`, `playerCard.rank`, `rankName`, `totalDogTags`, `badgeSummary.totalBadges`, `playerCard.rankImage.large`, `competitiveRanks`; bei privaten Profilen nur Rang, Rangname und Rang-Bild (seit 0.6.5) |
 | Meistgespielte Klasse (seit 0.6.0 alle Klassen als Attribut `classes`) | Sensor (Text) | 15 min | `classes[]` mit der längsten Spielzeit |
 | Top-Waffe, Top-Fahrzeug (Top 5 als Attribut `top`) | Sensoren (Text) | 15 min | `weapons[]`, `vehicles[]` nach Kills |
 | Plattform | Sensor (Diagnose), Symbol je Plattform | gespeichert | aus dem Dialog „Spieler hinzufügen“ |
@@ -300,6 +303,17 @@ per ID, nie per Name:
   Zahl, die das Spiel anzeigt (Abgleich am 02.11.2026: Spiel 48,
   `totalBadges` 48, `playerCard.badges` 120). Was `playerCard.badges`
   zählt, ist nicht belegt.
+- **Private Profile** (seit 0.6.5): Geprüft am 02.11.2026 mit einem echten,
+  im Spiel privat gestellten Steam-Konto. Die Suche findet es (als Plattform
+  `ea`, mit `visibility: EVERYONE`), die Statistik ist vollständig
+  (`hasResults: true`, alle Werte). Nur `/bf6/profile/` antwortet verkürzt:
+  statt `playerProfiles` kommt `{"other": [{"playerProfiles": [{"rank",
+  "rankName", "rankImage", "badges"}]}]}`, ohne `playerCard`, Dog Tags,
+  `badgeSummary` und Ranked-Rang. Die Integration liest daraus Rang,
+  Rangname und Rang-Bild, damit gibt es auch „Rang gestiegen“; Dog Tags,
+  Abzeichen und Ranked-Rang bleiben leer. Das flache `badges` bleibt
+  ungenutzt, weil es wie `playerCard.badges` heißt (siehe Abzeichen). Bis
+  0.6.4 stand der Rang solcher Konten auf „unbekannt“, ohne Bild.
 - **Daten je EA-Konto:** `/bf6/stats/` liefert die Werte zur `nucleus_id`
   (EA-Konto); `playerid` wird nur zurückgegeben. Geprüft am 02.11.2026 mit
   zwei öffentlichen Konten: vertauschte `playerid` bei gleicher
@@ -371,7 +385,13 @@ Text sichtbar, kein Skript, kein fremdes Bild. Namen erscheinen nicht im Log.
 Automatische Tests laufen gegen Home Assistant 2026.2.3
 (`pytest-homeassistant-custom-component` 0.13.316).
 
-- **0.6.x:** 201 automatische Tests. 0.6.4: Lichtrand um Waffen- und
+- **0.6.x:** 204 automatische Tests. 0.6.5: verkürzte Profilantwort
+  privater Konten (Rang, Rangname, Bild, Ereignis „Rang gestiegen“, Prüfung
+  der Bildadresse, leere und kaputte Formen). Gegenprobe: verkürzte Form
+  nicht gelesen, flaches `badges` genutzt, Bildadresse ungeprüft einzeln
+  eingebaut – jedes Mal schlugen Tests fehl (3, 2, 1). Gegen die echte
+  Antwort des privaten Kontos vom 02.11.2026 laufen lassen: Rang 353
+  „Colonel“, Bild von `cdn.gametools.network`. 0.6.4: Lichtrand um Waffen- und
   Fahrzeugbilder im dunklen Modus; ein Test verlangt den Schalter für den
   hellen Modus, den Rand an den Bildern und keinen am Rang-Abzeichen.
   Gegenprobe: Rand auch hell, Rand nicht an den Bildern und feste

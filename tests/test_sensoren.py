@@ -21,6 +21,7 @@ from custom_components.bf6_player.sensor import SENSORS, WORLD_SENSORS, Bf6Senso
 
 from .conftest import (
     PROFILE,
+    PROFILE_REDUZIERT,
     STATS,
     STATS_EMPTY,
     main_entry,
@@ -172,6 +173,28 @@ async def test_profile_failure_keeps_stats(
     await _setup(hass)
     assert _state(hass, "kills").state == "1000"
     assert _state(hass, "rank").state == STATE_UNKNOWN
+
+
+async def test_private_profile_rank(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+):
+    """Privates Konto (0.6.5): Statistik voll, Profil verkuerzt; Rang,
+    Rangname und Rang-Abzeichen kommen trotzdem, Dog Tags und Abzeichen
+    bleiben leer."""
+    _mock(aioclient_mock, profile=PROFILE_REDUZIERT)
+    await _setup(hass)
+    assert _state(hass, "kills").state == "1000"
+    rank = _state(hass, "rank")
+    assert rank.state == "77"
+    assert rank.attributes["rank_name"] == "Testoberst"
+    assert rank.attributes["dog_tags"] is None
+    assert rank.attributes["badges"] is None
+    assert rank.attributes["ranked"] == []
+    entity_id = er.async_get(hass).async_get_entity_id(
+        "image", DOMAIN, "1000000001-rank_badge"
+    )
+    image = hass.data["entity_components"]["image"].get_entity(entity_id)
+    assert image.image_url == "https://cdn.gametools.network/ranks/bf6/p_lg.png"
 
 
 async def test_profile_only_hourly(

@@ -299,6 +299,27 @@ PROFILE = {
     ]
 }
 
+# Verkuerzte Antwort von /bf6/profile/, wie live am 02.11.2026 bei einem
+# privaten Konto (Aufbau echt, Werte erfunden): flach unter "other", ohne
+# playerCard, Dog Tags, badgeSummary und Ranked-Rang.
+PROFILE_REDUZIERT = {
+    "other": [
+        {
+            "playerProfiles": [
+                {
+                    "rank": 77,
+                    "badges": 99,
+                    "rankName": "Testoberst",
+                    "rankImage": {
+                        "small": "https://cdn.gametools.network/ranks/bf6/p_sm.png",
+                        "large": "https://cdn.gametools.network/ranks/bf6/p_lg.png",
+                    },
+                }
+            ]
+        }
+    ]
+}
+
 EVENTS = {
     "events": [
         {
