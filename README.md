@@ -7,9 +7,9 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.6.1.
+Version 0.6.2.
 
-> **Stand:** Version 0.6.1: Jeder Spieler ist ein Gerät mit 20 Sensoren,
+> **Stand:** Version 0.6.2: Jeder Spieler ist ein Gerät mit 20 Sensoren,
 > Rang-Abzeichen und den Ereignissen „Match beendet“ und „Rang gestiegen“
 > (siehe [Entitäten je Spieler](#entitäten-je-spieler)); dazu das Gerät
 > „BF6-Spielwelt“, Aktionen, Optionen, Diagnose, Reparaturhinweis und acht
@@ -236,7 +236,9 @@ sort: win_rate
   minus Siege minus Niederlagen (am selben Tag: 1).
 - **Verlauf:** liest `recorder/statistics_during_period`; Home Assistant
   bildet die Langzeitstatistik stündlich, die ersten Werte erscheinen also
-  einige Stunden nach der Installation. Werte stehen beim Überfahren mit der
+  einige Stunden nach der Installation. Seit 0.6.2 hat jeder Tag (bzw.
+  jede Woche, jeder Monat) einen festen Platz, heute rechts; Tage ohne Werte
+  bleiben leer. Werte stehen beim Überfahren mit der
   Maus an den Balken bzw. Punkten, Summe bzw. kleinster und größter Wert als
   Text darunter.
 
@@ -308,7 +310,21 @@ Text sichtbar, kein Skript, kein fremdes Bild. Namen erscheinen nicht im Log.
 Automatische Tests laufen gegen Home Assistant 2026.2.3
 (`pytest-homeassistant-custom-component` 0.13.316).
 
-- **0.6.x:** 189 automatische Tests. 0.6.1: Die Karte „BF6 Verlauf“ zeigte
+- **0.6.x:** 189 automatische Tests. 0.6.2: „BF6 Verlauf“ mit Zeitachse,
+  ein Platz je Tag, Woche oder Monat, der laufende Zeitraum rechts; Lücken
+  bleiben leer, ein einzelner Wert ist ein kurzer Strich bzw. ein schmaler
+  Balken. Live in 0.6.1 gesehen (Screenshots vom 02.11.2026): ein einziger
+  Tageswert füllte als Balken die ganze Breite, die K/D-Linie reichte über
+  den ganzen Zeitraum. Lokal in Chromium mit 1, 5 (mit Lücke), 30 und 31
+  Tageswerten, 3 Wochen- und 2 Monatswerten gerendert: Platzbreite 10 von
+  300 bei 30 Tagen, der neueste Wert rechts, Beschriftung von Beginn des
+  ersten Platzes bis heute. 0.6.1 **live geprüft** (Screenshots des
+  Dashboards „BF6 Test“, Home Assistant 2026.10.4): alle neun Karten
+  geladen, Rang-Abzeichen, Waffen- und Fahrzeugbilder vom CDN, Werte gleich
+  den Sensoren (K/D 1,51 = 12.888 ÷ 8.553, Siegquote 46,3 % = 346 ÷ 748,
+  Support 78,5 h = 282.620 s und 41 % der Spielzeit, „Fort Lyndon“ 12,9 %
+  mit „auch REDSEC“, Saison noch 78 Tage, 20 % vergangen). Der Editor ist
+  noch nicht gesehen. 0.6.1: Die Karte „BF6 Verlauf“ zeigte
   bei nur einem Wert (erster Tag der Langzeitstatistik) keine Linie und
   legte gleiche Werte an den unteren Rand; jetzt eine waagrechte Linie in
   der Mitte. Lokal in Chromium mit 1, 3 gleichen und 30 Werten gerendert

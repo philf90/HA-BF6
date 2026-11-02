@@ -11,7 +11,8 @@
  * Die API liefert keinen Verlauf; die Karte liest die Langzeitstatistik von
  * Home Assistant (recorder/statistics_during_period). Quoten (measurement)
  * als Linie des Mittelwerts je Zeitraum, Zaehler (total_increasing) als
- * Balken des Zuwachses je Zeitraum (z. B. Kills pro Tag). Werte erscheinen
+ * Balken des Zuwachses je Zeitraum (z. B. Kills pro Tag), jeder Wert an
+ * seinem Platz auf der Zeitachse (seit 0.6.2). Werte erscheinen
  * beim Ueberfahren mit der Maus (SVG-Titel); darunter stehen Start, Ende,
  * kleinster und groesster Wert als Text.
  */
@@ -35,6 +36,9 @@ const WERTE = {
   time_played: ["change", 1, false],
 };
 const ZEITRAEUME = ["day", "week", "month"];
+// Laenge eines Zeitraums in ms; Monate im Mittel (365,25 / 12 Tage), die
+// Zuordnung rundet, Sommerzeit und Monatslaengen fallen so heraus
+const PERIODE = { day: TAG, week: 7 * TAG, month: (365.25 / 12) * TAG };
 
 class Bf6HistoryCard extends C.Bf6Card {
   static TEXT = {
@@ -197,41 +201,56 @@ class Bf6HistoryCard extends C.Bf6Card {
     const B = 300;
     const H = 120;
     const rand = 4;
+    // Zeitachse: ein Platz je Zeitraum (Tag, Woche, Monat) ueber den ganzen
+    // Bereich, der laufende Zeitraum rechts. Fehlende Tage bleiben leer,
+    // statt dass wenige Werte die ganze Breite fuellen (live am 02.11.2026:
+    // ein einziger Tageswert als Balken ueber die volle Breite).
+    const laenge = PERIODE[e.period];
+    const jetzt = this._periodenStart(e.period, 0);
+    const zurueck = (t) => Math.max(0, Math.round((jetzt - t) / laenge));
+    const plaetze = Math.max(Math.ceil((e.days * TAG) / laenge), ...punkte.map((p) => zurueck(p.t) + 1));
+    const breite = B / plaetze;
+    const links = (p) => (plaetze - 1 - zurueck(p.t)) * breite;
+    const titel = (p) => `<title>${esc(`${datum(p.t)}: ${text(p.v)}`)}</title>`;
+    const treffer = (p) => `<rect class="treffer" x="${links(p).toFixed(2)}" y="0" width="${breite.toFixed(2)}" height="${H}">${titel(p)}</rect>`;
     let marken;
     if (e.art === "change") {
-      // Balken ab der Nulllinie, 2 px Abstand, oben 4 px gerundet
+      // Balken ab der Nulllinie, 2 Einheiten Abstand, oben bis 4 gerundet
       const hoch = Math.max(max, 0) || 1;
-      const breite = B / punkte.length;
       const balken = Math.max(1, breite - 2);
       marken = punkte
-        .map((p, i) => {
+        .map((p) => {
           const h = Math.max(0, (p.v / hoch) * (H - rand));
-          const x = i * breite + (breite - balken) / 2;
           const r = Math.min(4, balken / 2, h);
-          const titel = `<title>${esc(`${datum(p.t)}: ${text(p.v)}`)}</title>`;
-          return `<rect class="treffer" x="${(i * breite).toFixed(2)}" y="0" width="${breite.toFixed(2)}" height="${H}">${titel}</rect>${
-            h > 0 ? `<path class="balken" d="${this._balken(x, H - h, balken, h, r)}">${titel}</path>` : ""
-          }`;
+          return `${treffer(p)}${h > 0 ? `<path class="balken" d="${this._balken(links(p) + (breite - balken) / 2, H - h, balken, h, r)}">${titel(p)}</path>` : ""}`;
         })
         .join("");
     } else {
-      // Gleiche Werte (auch ein einziger Wert) als waagrechte Linie in der
-      // Mitte; eine Polylinie aus nur einem Punkt waere unsichtbar (live am
-      // 02.11.2026: am ersten Tag gibt es genau einen Tageswert).
+      // Linie durch die Mitte der Plaetze; Luecken unterbrechen sie, ein
+      // einzelner Wert ist ein kurzer Strich ueber seinen Platz. Gleiche
+      // Werte liegen in der Mitte der Hoehe.
       const spanne = max - min;
       const y = (v) => (spanne ? H - rand - ((v - min) / spanne) * (H - 2 * rand) : H / 2).toFixed(2);
-      const x = (i) => ((i / (punkte.length - 1)) * B).toFixed(2);
-      const linie =
-        punkte.length === 1 ? `0,${y(punkte[0].v)} ${B},${y(punkte[0].v)}` : punkte.map((p, i) => `${x(i)},${y(p.v)}`).join(" ");
-      const breite = B / punkte.length;
-      marken =
-        `<polyline class="linie" vector-effect="non-scaling-stroke" points="${linie}"></polyline>` +
-        punkte
-          .map(
-            (p, i) =>
-              `<rect class="treffer" x="${(punkte.length === 1 ? 0 : Math.max(0, x(i) - breite / 2)).toFixed(2)}" y="0" width="${breite.toFixed(2)}" height="${H}"><title>${esc(`${datum(p.t)}: ${text(p.v)}`)}</title></rect>`
-          )
-          .join("");
+      const f = (n) => n.toFixed(2);
+      const sortiert = [...punkte].sort((a, b) => a.t - b.t);
+      const laeufe = [];
+      for (const p of sortiert) {
+        const lauf = laeufe[laeufe.length - 1];
+        if (lauf && zurueck(lauf[lauf.length - 1].t) - zurueck(p.t) === 1) {
+          lauf.push(p);
+        } else {
+          laeufe.push([p]);
+        }
+      }
+      const strich = Math.max(breite - 2, 4);
+      const d = laeufe
+        .map((lauf) =>
+          lauf.length === 1
+            ? `M${f(links(lauf[0]) + (breite - strich) / 2)},${y(lauf[0].v)}H${f(links(lauf[0]) + (breite + strich) / 2)}`
+            : lauf.map((p, i) => `${i ? "L" : "M"}${f(links(p) + breite / 2)},${y(p.v)}`).join("")
+        )
+        .join("");
+      marken = `<path class="linie" vector-effect="non-scaling-stroke" d="${d}"></path>${punkte.map(treffer).join("")}`;
     }
     const zusammen =
       e.art === "change"
@@ -242,8 +261,24 @@ class Bf6HistoryCard extends C.Bf6Card {
         <line class="gitter" x1="0" x2="${B}" y1="${H - 0.5}" y2="${H - 0.5}" vector-effect="non-scaling-stroke"></line>
         ${marken}
       </svg>
-      <div class="achse"><span>${esc(datum(punkte[0].t))}</span><span>${esc(datum(punkte[punkte.length - 1].t))}</span></div>
+      <div class="achse"><span>${esc(datum(this._periodenStart(e.period, plaetze - 1)))}</span><span>${esc(datum(jetzt))}</span></div>
       <div class="leg"><span>${esc(zusammen)}</span><span>${esc(`${fmt(e.days, lang)} ${this._t("days")}`)}</span></div>`;
+  }
+
+  // Beginn des Zeitraums, der zurueck Zeitraeume vor dem laufenden liegt, in
+  // Ortszeit (Home Assistant teilt Tage, Wochen ab Montag und Monate ebenso)
+  _periodenStart(period, zurueck) {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    if (period === "month") {
+      d.setDate(1);
+      d.setMonth(d.getMonth() - zurueck);
+    } else if (period === "week") {
+      d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - 7 * zurueck);
+    } else {
+      d.setDate(d.getDate() - zurueck);
+    }
+    return d.getTime();
   }
 
   // Rechteck mit oben gerundeten Ecken (Radius r), unten eckig auf der Nulllinie
