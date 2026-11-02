@@ -1,7 +1,11 @@
 # Prueft jeden Push auf main und jeden Pull Request: Code-Stil, Tests,
 # hassfest (Pruefung von Home Assistant) und die HACS-Pruefung.
-# Tests laufen gegen dieselbe Home-Assistant-Version wie lokal
-# (pytest-homeassistant-custom-component 0.13.316 = Home Assistant 2026.2.3).
+# Tests laufen gegen zwei Home-Assistant-Versionen (seit 0.6.9):
+# - die Mindestversion aus hacs.json
+#   (pytest-homeassistant-custom-component 0.13.316 = Home Assistant 2026.2.3)
+# - eine aktuelle Version
+#   (pytest-homeassistant-custom-component 0.13.375 = Home Assistant 2026.10.4,
+#   braucht Python 3.14). Beim Anheben auch README, Abschnitt "Teststand".
 name: Pruefung
 
 on:
@@ -31,6 +35,22 @@ jobs:
         run: |
           ruff check .
           ruff format --check .
+
+      - name: Tests
+        run: python -m pytest tests -q
+
+  tests-aktuell:
+    name: Tests mit aktuellem Home Assistant
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      - name: Abhaengigkeiten installieren
+        run: pip install pytest-homeassistant-custom-component==0.13.375
 
       - name: Tests
         run: python -m pytest tests -q

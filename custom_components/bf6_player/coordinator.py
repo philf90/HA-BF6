@@ -98,6 +98,22 @@ def issue_id(subentry_id: str) -> str:
     return f"no_stats_{subentry_id}"
 
 
+def counter_drops(old: dict[str, Any], new: dict[str, Any]) -> list[str]:
+    """Zaehler, die gegenueber der letzten Abfrage gesunken sind.
+
+    Die Sensoren dazu sind total_increasing. Home Assistant wertet einen
+    Rueckgang um mehr als 10 % als neuen Zaehlerzyklus und zaehlt danach den
+    vollen Wert erneut in die Summe der Langzeitstatistik (Review 0.6.9).
+    """
+    return [
+        key
+        for key in MATCH_COUNTERS
+        if isinstance(before := old.get(key), int)
+        and isinstance(after := new.get(key), int)
+        and after < before
+    ]
+
+
 def match_event(old: dict[str, Any], new: dict[str, Any]) -> dict[str, Any] | None:
     """Daten fuer "Match beendet", wenn seit der letzten Abfrage Matches dazukamen.
 
@@ -181,6 +197,8 @@ class Bf6PlayerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.events_serial = 0
         self._profile: dict[str, Any] | None = None
         self._profile_at: datetime | None = None
+        # Die letzte Abfrage hatte gesunkene Zaehler und wurde verworfen.
+        self._drop_pending = False
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
@@ -193,6 +211,7 @@ class Bf6PlayerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._create_issue()
             raise UpdateFailed(translation_domain=DOMAIN, translation_key="no_stats")
         ir.async_delete_issue(self.hass, DOMAIN, issue_id(self.subentry.subentry_id))
+        stats = self._hold_drop(stats)
         previous_profile = self._profile
         await self._update_profile()
         self.events = []
@@ -204,6 +223,35 @@ class Bf6PlayerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         ):
             self.events.append((EVENT_RANK_UP, rank))
         return {"stats": stats, "profile": self._profile}
+
+    def _hold_drop(self, stats: dict[str, Any]) -> dict[str, Any]:
+        """Gesunkene Zaehler erst uebernehmen, wenn die naechste Abfrage sie
+        bestaetigt; bis dahin bleibt die ganze letzte Statistik (seit 0.6.9).
+
+        Ein einmaliger Ausreisser der API (z. B. 0 Kills) aendert so weder
+        Sensoren noch Langzeitstatistik. Ein echter Ruecksetzer gilt eine
+        Abfrage spaeter.
+        """
+        if self.data is None or not (drops := counter_drops(self.data["stats"], stats)):
+            self._drop_pending = False
+            return stats
+        persona_id = self.subentry.data[CONF_PERSONA_ID]
+        if self._drop_pending:
+            self._drop_pending = False
+            _LOGGER.warning(
+                "Spieler %s: Rueckgang von %s bestaetigt, Werte uebernommen",
+                persona_id,
+                ", ".join(drops),
+            )
+            return stats
+        self._drop_pending = True
+        _LOGGER.warning(
+            "Spieler %s: %s gesunken; Abfrage verworfen, bis die naechste den "
+            "Rueckgang bestaetigt",
+            persona_id,
+            ", ".join(drops),
+        )
+        return self.data["stats"]
 
     async def _update_profile(self) -> None:
         """Profil nur im eigenen Takt; scheitert es, bleibt der letzte Stand."""

@@ -11,9 +11,9 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.6.8.
+Version 0.6.9.
 
-> **Stand:** Version 0.6.8: Jeder Spieler ist ein Gerät mit 20 Sensoren,
+> **Stand:** Version 0.6.9: Jeder Spieler ist ein Gerät mit 20 Sensoren,
 > Rang-Abzeichen und den Ereignissen „Match beendet“ und „Rang gestiegen“
 > (siehe [Entitäten je Spieler](#entitäten-je-spieler)); dazu das Gerät
 > „BF6-Spielwelt“, Aktionen, Optionen, Diagnose, Reparaturhinweis und acht
@@ -111,7 +111,11 @@ ist kein Produkt von EA, DICE oder Community Network. Fragen zur API:
 
 Seit 0.4.0. Zähler als `total_increasing`, Quoten als `measurement`: Home
 Assistant führt für beide Langzeitstatistiken, daraus entstehen Verläufe ab
-der Installation.
+der Installation. Sinkt ein Zähler, verwirft die Integration diese Abfrage
+einmal und übernimmt den Rückgang erst, wenn die nächste Abfrage ihn
+bestätigt (seit 0.6.9): Home Assistant zählt einen Rückgang um mehr als 10 %
+als neuen Zählerzyklus, ein einmaliger Ausreißer der API würde die Summe der
+Langzeitstatistik sonst um den ganzen Zählerstand erhöhen.
 
 | Wert | Typ | Takt | Quelle (Endpunkt, Feld) |
 |---|---|---|---|
@@ -136,6 +140,11 @@ der Installation.
   0.6.8; vorher nur beim Start). Antwortet die API mit HTTP 429 und
   `Retry-After`, wartet der Spieler bzw. die Spielwelt so lange, mindestens
   bis zum nächsten Takt und höchstens 6 Stunden.
+- **Start:** Das Einrichten wartet höchstens 10 Sekunden auf die ersten
+  Abfragen (seit 0.6.9; vorher bis zu 30 s je zwei Spieler). Antwortet die
+  API langsamer, läuft der Start von Home Assistant weiter, die Entitäten
+  stehen kurz auf „unbekannt“ und die Abfragen laufen im Hintergrund zu
+  Ende.
 - **Nicht verfügbar** sind die Entitäten eines Spielers, wenn die API nicht
   antwortet oder zu seinem Konto keine Statistik liefert (`hasResults:
   false`). Die Plattform bleibt sichtbar.
@@ -395,10 +404,24 @@ Text sichtbar, kein Skript, kein fremdes Bild. Namen erscheinen nicht im Log.
 
 ## Teststand
 
-Automatische Tests laufen gegen Home Assistant 2026.2.3
-(`pytest-homeassistant-custom-component` 0.13.316).
+Automatische Tests laufen gegen zwei Versionen von Home Assistant: die
+Mindestversion 2026.2.3 (`pytest-homeassistant-custom-component` 0.13.316,
+Python 3.13) und seit 0.6.9 die aktuelle 2026.10.4 (0.13.375, Python 3.14).
 
-- **0.6.x:** 256 automatische Tests. 0.6.8: Befunde aus einem Code-Review
+- **0.6.x:** 261 automatische Tests, grün gegen Home Assistant 2026.2.3 und
+  2026.10.4. 0.6.9: Start wartet höchstens 10 s auf die ersten Abfragen,
+  danach laufen sie als Hintergrund-Tasks des Eintrags weiter und enden mit
+  ihm; ein gesunkener Zähler gilt erst, wenn die nächste Abfrage ihn
+  bestätigt. CI testet zusätzlich gegen Home Assistant 2026.10.4; dort ist
+  `device_registry.async_get_device` abgekündigt, drei Tests fanden Geräte
+  damit und gehen jetzt über die Entity-Registry. Gegenprobe: Wartelogik aus
+  0.6.8 (Setup hängt, Test endet nach 5 s mit `TimeoutError`), Tasks am
+  `hass` statt am Eintrag (offene Abfrage läuft nach dem Entladen weiter),
+  Rückgang sofort bzw. nie übernommen – jedes Mal schlug der zugehörige Test
+  fehl. Unter 2026.10.4 keine Abkündigungswarnung aus dem Code der
+  Integration. Live mit 0.6.8 geprüft (02.11.2026, HA 2026.10.4): Eintrag
+  geladen, keine Fehler im Log, alle 23 Entitäten eines Spielers mit Werten.
+  0.6.8: Befunde aus einem Code-Review
   behoben. Auswertung: `_int` nur ASCII-Ziffern („²“ ergab `ValueError`),
   Quoten nur endlich, Zeitstempel in Millisekunden, ungültiger Port in
   Bildadressen, Liste als Modus-ID; ein Fuzz-Test verändert die
@@ -585,6 +608,8 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3
 pip install pytest-homeassistant-custom-component==0.13.316 ruff==0.16.9
 ruff check . && ruff format --check .
 pytest tests   # pytest.ini setzt asyncio_mode = auto
+# aktuelle Version, mit Python 3.14:
+pip install pytest-homeassistant-custom-component==0.13.375
 ```
 
 Dieselben Schritte laufen bei jedem Push auf `main` und jedem Pull Request im

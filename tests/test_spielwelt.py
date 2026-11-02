@@ -4,13 +4,12 @@ from datetime import timedelta
 
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.bf6_player.const import DOMAIN
 
-from .conftest import EVENTS, STATUS, main_entry
+from .conftest import EVENTS, STATUS, device_of, main_entry
 
 BASE = "https://api.gametools.network"
 EVENTS_URL = f"{BASE}/bf6/gameevents/"
@@ -44,7 +43,8 @@ async def test_world_sensors(hass: HomeAssistant, aioclient_mock):
     assert end.attributes["season_start"] == "2026-10-13T12:00:00+00:00"
     assert _state(hass, entry, "portal_servers").state == "1000"
     assert _state(hass, entry, "portal_players").state == "500"
-    device = dr.async_get(hass).async_get_device({(DOMAIN, f"{entry.entry_id}-world")})
+    device = device_of(hass, f"{entry.entry_id}-world-portal_servers")
+    assert (DOMAIN, f"{entry.entry_id}-world") in device.identifiers
     assert device.manufacturer == "Electronic Arts"
 
 

@@ -9,6 +9,7 @@ Geraet "BF6-Spielwelt" (seit 0.5.0).
 from __future__ import annotations
 
 import asyncio
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -28,11 +29,14 @@ from .const import (
     CONF_NAME,
     CONF_PLATFORM,
     DOMAIN,
+    FIRST_REFRESH_WAIT_SECONDS,
     SUBENTRY_PLAYER,
     player_title,
 )
 from .coordinator import Bf6PlayerCoordinator, Bf6WorldCoordinator, issue_id
 from .services import async_setup_services
+
+_LOGGER = logging.getLogger(__name__)
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 PLATFORMS = [Platform.EVENT, Platform.IMAGE, Platform.SENSOR]
@@ -130,11 +134,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: Bf6ConfigEntry) -> bool:
         runtime.coordinators[subentry_id] = Bf6PlayerCoordinator(
             hass, entry, runtime.client, entry.subentries[subentry_id]
         )
-    # Das Limit gleichzeitiger Abfragen haelt der Client (seit 0.6.8).
-    await asyncio.gather(
-        runtime.world.async_refresh(),
-        *(coordinator.async_refresh() for coordinator in runtime.coordinators.values()),
-    )
+    # Erste Abfragen als Hintergrund-Tasks des Eintrags (beim Entladen
+    # abgebrochen), darauf hoechstens FIRST_REFRESH_WAIT_SECONDS warten
+    # (seit 0.6.9). Das Limit gleichzeitiger Abfragen haelt der Client.
+    first = [
+        entry.async_create_background_task(
+            hass, coordinator.async_refresh(), f"{coordinator.name} first refresh"
+        )
+        for coordinator in (runtime.world, *runtime.coordinators.values())
+    ]
+    _, pending = await asyncio.wait(first, timeout=FIRST_REFRESH_WAIT_SECONDS)
+    if pending:
+        _LOGGER.info(
+            "%s von %s ersten Abfragen nach %s s noch offen; sie laufen im "
+            "Hintergrund weiter",
+            len(pending),
+            len(first),
+            FIRST_REFRESH_WAIT_SECONDS,
+        )
     entry.runtime_data = runtime
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     # Spieler hinzugefuegt oder geloescht, Optionen geaendert: neu laden.

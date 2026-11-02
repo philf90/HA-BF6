@@ -3,11 +3,10 @@
 import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
-from homeassistant.helpers import device_registry as dr
 
 from custom_components.bf6_player.const import DOMAIN
 
-from .conftest import SEARCH, STATS, main_entry, player_subentry
+from .conftest import SEARCH, STATS, device_of, main_entry, player_subentry
 
 BASE = "https://api.gametools.network"
 STATS_URL = f"{BASE}/bf6/stats/"
@@ -39,7 +38,8 @@ async def test_refresh_all(hass: HomeAssistant, aioclient_mock):
 async def test_refresh_one_device(hass: HomeAssistant, aioclient_mock):
     aioclient_mock.get(STATS_URL, json=STATS)
     await _setup(hass)
-    device = dr.async_get(hass).async_get_device({(DOMAIN, "1000000002")})
+    device = device_of(hass, "1000000002-kills")
+    assert (DOMAIN, "1000000002") in device.identifiers
     await hass.services.async_call(
         DOMAIN, "refresh", {"device_id": device.id}, blocking=True
     )

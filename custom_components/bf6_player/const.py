@@ -66,6 +66,13 @@ def player_title(name: str, platform: str) -> str:
     return f"{name} · {PLATFORM_NAMES.get(platform, platform)}"
 
 
+# So lange wartet das Setup hoechstens auf die ersten Abfragen (seit 0.6.9).
+# Antwortet die API normal (0,8-1,7 s), sind die Daten beim Ende des Setups
+# da; haengt sie, laeuft der Start von Home Assistant weiter und die Abfragen
+# im Hintergrund zu Ende. Bis 0.6.8 wartete das Setup bis zu
+# (Spieler + 1) / 2 x 30 s.
+FIRST_REFRESH_WAIT_SECONDS = 10
+
 # Takte: Statistik alle 15 min (Antworten sind 600 s gecacht, kuerzer bringt
 # nichts), Profil mit Rang und Abzeichen stuendlich. Seit 0.5.0 in den
 # Optionen des Haupteintrags einstellbar, in diesen Grenzen.
