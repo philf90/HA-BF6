@@ -42,6 +42,18 @@ export const FARBEN = {
 export const ZWEIZEILIG =
   "overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; text-wrap: balance;";
 
+// Lichtrand um Waffen- und Fahrzeugbilder (seit 0.6.4), nur im dunklen Modus:
+// Die Bilder vom CDN sind ueberwiegend dunkel und hoben sich von der dunklen
+// Huelle kaum ab (am 02.11.2026 bei 7 Bildern 22-86 % der Bildpunkte unter
+// 1,5:1). Der Rand nimmt die Farbe des Primaertexts (90 % und 50 % Deckkraft);
+// der Schalter nachtblau-dunkel-anteil macht ihn im hellen Modus durchsichtig,
+// dort stehen die Bilder ohnehin gut (0-4 % unter 1,5:1).
+const NUR_DUNKEL = (farbe) => `color-mix(in srgb, ${farbe} var(--nachtblau-dunkel-anteil, 100%), transparent)`;
+export const LICHTRAND = [
+  `drop-shadow(0 0 0.6px ${NUR_DUNKEL(`color-mix(in srgb, ${FARBEN.text} 90%, transparent)`)})`,
+  `drop-shadow(0 0 2px ${NUR_DUNKEL(`color-mix(in srgb, ${FARBEN.text} 50%, transparent)`)})`,
+].join(" ");
+
 export const STYLE = `
   :host { display: block; container-type: inline-size; }
   ha-card {
@@ -82,7 +94,7 @@ export const STYLE = `
   .zeile + .zeile { border-top: 1px solid ${FARBEN.rand}; }
   .zeile.bild { grid-template-columns: 44px minmax(0, 1fr) auto; }
   .zeile.bild .spur { grid-column: 2 / -1; }
-  .thumb { grid-row: 1 / span 3; width: 44px; height: 28px; object-fit: contain; }
+  .thumb { grid-row: 1 / span 3; width: 44px; height: 28px; object-fit: contain; filter: ${LICHTRAND}; }
   .zn { min-width: 0; font-size: 14px; line-height: 1.3; font-weight: 700; color: ${FARBEN.titel}; ${ZWEIZEILIG} }
   .zw { justify-self: end; font-size: 14px; font-weight: 750; color: ${FARBEN.text}; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .zi { min-width: 0; font-size: 12px; line-height: 1.3; color: ${FARBEN.sek}; ${ZWEIZEILIG} }

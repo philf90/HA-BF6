@@ -188,3 +188,15 @@ def test_number_and_unit_stay_together() -> None:
         text = datei.read_text(encoding="utf-8")
         assert ")} %" not in text, datei.name
         assert not re.search(r"\)\} \$\{(esc\()?this\._t\(", text), datei.name
+
+
+def test_light_outline_only_dark_and_only_thumbnails() -> None:
+    """Lichtrand (0.6.4) um Waffen- und Fahrzeugbilder, im hellen Modus
+    ueber nachtblau-dunkel-anteil durchsichtig; das Rang-Abzeichen im Kopf
+    bekommt ihn nicht (Entscheidung vom 02.11.2026)."""
+    rand = re.search(r"export const LICHTRAND = \[(.*?)\]", COMMON, re.DOTALL)[1]
+    assert rand.count("${NUR_DUNKEL(") == 2
+    nur_dunkel = re.search(r"const NUR_DUNKEL = .*", COMMON)[0]
+    assert "var(--nachtblau-dunkel-anteil, 100%)" in nur_dunkel
+    assert re.search(r"\.thumb \{[^}]*filter: \$\{LICHTRAND\}", COMMON)
+    assert not re.search(r"\.symbol img \{[^}]*LICHTRAND", COMMON)
