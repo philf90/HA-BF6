@@ -19,7 +19,7 @@
       "step": {
         "user": {
           "title": "Spieler suchen",
-          "description": "Spielernamen so eingeben, wie er in Battlefield 6 steht (EA-Name, Steam-, PlayStation- oder Xbox-Name). Mehrere Konten können denselben Namen haben; das richtige wählst du im nächsten Schritt.",
+          "description": "Spielernamen so eingeben, wie er in Battlefield 6 steht (EA-Name, Steam-, PlayStation- oder Xbox-Name), höchstens {max} Zeichen. Sonderzeichen sind erlaubt. Mehrere Konten können denselben Namen haben; das richtige wählst du im nächsten Schritt.",
           "data": {
             "name": "Spielername"
           }
@@ -35,7 +35,8 @@
       "error": {
         "cannot_connect": "Die gametools API hat nicht geantwortet. Später erneut versuchen.",
         "no_players": "Kein Spieler mit diesem Namen gefunden.",
-        "no_stats": "Die gametools API kennt für dieses Konto keine Statistik zu Battlefield 6. Ein anderes Konto wählen oder nach einem Match erneut versuchen."
+        "no_stats": "Die gametools API kennt für dieses Konto keine Statistik zu Battlefield 6. Ein anderes Konto wählen oder nach einem Match erneut versuchen.",
+        "invalid_name": "Einen Namen mit 1 bis {max} Zeichen eingeben, ohne Zeilenumbrüche oder andere Steuerzeichen."
       },
       "abort": {
         "entry_not_loaded": "Der Eintrag „gametools API“ ist nicht geladen. Neu laden und erneut versuchen.",

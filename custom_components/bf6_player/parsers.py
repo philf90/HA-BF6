@@ -12,10 +12,12 @@ classes[All].kpm 1,96 beim selben Konto).
 from __future__ import annotations
 
 import re
+import unicodedata
 from datetime import UTC, datetime
 from typing import Any
+from urllib.parse import urlsplit
 
-from .const import TOP_COUNT
+from .const import IMAGE_HOSTS, NAME_MAX, TOP_COUNT
 
 # Sammeleintraege, die keine einzelne Klasse, Karte oder keinen Modus meinen
 # (IDs aus den Antworten vom 01.11.2026).
@@ -62,6 +64,49 @@ def _text(value: Any) -> str | None:
     return value.strip() or None if isinstance(value, str) else None
 
 
+# Zeichen, die in einem Namen nichts zu suchen haben: Steuerzeichen
+# (Zeilenumbruch, Nullbyte, Tabulator) und die Richtungszeichen, mit denen
+# sich Text in der Anzeige umdrehen laesst (U+202A-U+202E, U+2066-U+2069).
+_BIDI = frozenset("\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069")
+
+
+def unsafe_char(char: str) -> bool:
+    return unicodedata.category(char) == "Cc" or char in _BIDI
+
+
+def clean_name(value: Any) -> str | None:
+    """Name aus einer API-Antwort fuer Titel und Geraetenamen.
+
+    Die API liefert Namen ungeprueft; Sonderzeichen bleiben, Steuer- und
+    Richtungszeichen fallen weg, die Laenge ist auf NAME_MAX begrenzt.
+    """
+    if not isinstance(value, str):
+        return None
+    cleaned = "".join(char for char in value if not unsafe_char(char)).strip()
+    return cleaned[:NAME_MAX].strip() or None
+
+
+def image_url(value: Any) -> str | None:
+    """Bildadresse nur ueber https von den bekannten Bildservern der API.
+
+    Home Assistant laedt solche Bilder spaeter selbst (Bild-Entitaet); eine
+    beliebige Adresse aus der Antwort koennte sonst auf Geraete im eigenen
+    Netz zeigen.
+    """
+    text = _text(value)
+    if text is None:
+        return None
+    try:
+        parts = urlsplit(text)
+    except ValueError:
+        return None
+    if parts.scheme != "https" or parts.hostname not in IMAGE_HOSTS:
+        return None
+    if parts.username or parts.password or parts.port not in (None, 443):
+        return None
+    return text
+
+
 def _datetime(value: Any) -> datetime | None:
     """ISO-Zeit ("2012-09-30T15:52:49Z") oder Sekunden seit 1970."""
     if isinstance(value, str):
@@ -101,7 +146,8 @@ def player_results(data: dict[str, Any] | None) -> list[dict[str, Any]]:
                 "persona_id": persona_id,
                 "nucleus_id": nucleus_id,
                 "platform": platform,
-                "name": _text(item.get("displayName")) or _text(item.get("username")),
+                "name": clean_name(item.get("displayName"))
+                or clean_name(item.get("username")),
                 "created": _datetime(item.get("createdAt")),
                 "public": item.get("visibility") == "EVERYONE",
             }
@@ -117,7 +163,7 @@ def _weapon(item: dict[str, Any]) -> dict[str, Any]:
         "accuracy": ratio(item.get("shotsHit"), item.get("shotsFired"), 100),
         "headshot_rate": ratio(item.get("headshotKills"), item.get("kills"), 100),
         "kpm": ratio(item.get("kills"), item.get("timeEquipped"), 60),
-        "image": _text(item.get("image")),
+        "image": image_url(item.get("image")),
     }
 
 
@@ -127,7 +173,7 @@ def _vehicle(item: dict[str, Any]) -> dict[str, Any]:
         "type": _text(item.get("type")),
         "kills": _int(item.get("kills")),
         "seconds": _int(item.get("timeIn")),
-        "image": _text(item.get("image")),
+        "image": image_url(item.get("image")),
     }
 
 
@@ -136,7 +182,7 @@ def _gadget(item: dict[str, Any]) -> dict[str, Any]:
         "name": _text(item.get("gadgetName")) or _text(item.get("name")),
         "type": _text(item.get("type")),
         "kills": _int(item.get("kills")),
-        "image": _text(item.get("image")),
+        "image": image_url(item.get("image")),
     }
 
 
@@ -280,7 +326,7 @@ def player_profile(data: dict[str, Any] | None) -> dict[str, Any]:
     return {
         "rank": _int(card.get("rank")),
         "rank_name": _text(profile.get("rankName")),
-        "rank_image": _text(images.get("large")),
+        "rank_image": image_url(images.get("large")),
         "dog_tags": _int(tags.get("intValue")) if isinstance(tags, dict) else None,
         "badges": _int(badges.get("totalBadges")) if isinstance(badges, dict) else None,
         "ranked": [

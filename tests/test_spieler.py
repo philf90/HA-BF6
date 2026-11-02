@@ -181,3 +181,90 @@ def test_account_label() -> None:
     assert account_label(account) == "Testspieler · Steam · 2020-10-01 · 🔒"
     account.update(name=None, platform="neu", created=None, public=True)
     assert account_label(account) == "1 · neu"
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "",
+        "   ",
+        "a" * 65,
+        "Name\nZweite Zeile",
+        "Null\x00Byte",
+        "Tab\tTab",
+        chr(0x202E) + "egnaR",
+    ],
+)
+async def test_invalid_name(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, name: str
+):
+    entry = await _loaded(hass, main_entry())
+    result = await _start(hass, entry)
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {"name": name}
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "invalid_name"}
+    assert result["description_placeholders"] == {"max": "64"}
+    # Ungueltige Namen gehen gar nicht erst an die API
+    assert aioclient_mock.call_count == 0
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "a&limit=100#x",
+        '"><script>alert(1)</script>',
+        "'; DROP TABLE x;--",
+        "../../bf6/status/",
+        "%2F%00",
+        "Ä€😀 ナ",
+        "a" * 64,
+    ],
+)
+async def test_special_characters_stay_in_parameter(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, name: str
+):
+    """Sonderzeichen kommen unveraendert und kodiert als Parameter name an."""
+    aioclient_mock.get(SEARCH_URL, json={"results": []})
+    entry = await _loaded(hass, main_entry())
+    result = await _search(hass, entry, name)
+    assert result["errors"] == {"base": "no_players"}
+    url = aioclient_mock.mock_calls[0][1]
+    assert url.path == "/bf6/player/"
+    assert dict(url.query) == {"name": name, "limit": "25"}
+
+
+async def test_name_in_description_has_no_markdown(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+):
+    aioclient_mock.get(SEARCH_URL, json=SEARCH)
+    entry = await _loaded(hass, main_entry())
+    result = await _search(hass, entry, "[Klick](https://example.com)*x*")
+    assert result["description_placeholders"]["name"] == (
+        r"\[Klick\]\(https://example\.com\)\*x\*"
+    )
+
+
+async def test_api_name_cleaned(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+):
+    """Steuer- und Richtungszeichen aus der API landen nicht im Titel."""
+    answer = {
+        "results": [
+            {
+                **SEARCH["results"][0],
+                "displayName": "Böser\n" + chr(0x202E) + "Name\x00 <b>",
+            }
+        ]
+    }
+    aioclient_mock.get(SEARCH_URL, json=answer)
+    aioclient_mock.get(STATS_URL, json=STATS)
+    entry = await _loaded(hass, main_entry())
+    result = await _search(hass, entry)
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {"account": "1000000001"}
+    )
+    subentry = next(iter(entry.subentries.values()))
+    assert subentry.title == "BöserName <b>"
+    assert subentry.data["name"] == "BöserName <b>"

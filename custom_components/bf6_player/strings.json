@@ -19,7 +19,7 @@
       "step": {
         "user": {
           "title": "Find player",
-          "description": "Enter the player name as shown in Battlefield 6 (EA name, Steam, PlayStation or Xbox name). Several accounts can share a name; you pick the right one next.",
+          "description": "Enter the player name as shown in Battlefield 6 (EA name, Steam, PlayStation or Xbox name), at most {max} characters. Special characters are allowed. Several accounts can share a name; you pick the right one next.",
           "data": {
             "name": "Player name"
           }
@@ -35,7 +35,8 @@
       "error": {
         "cannot_connect": "The gametools API did not answer. Try again later.",
         "no_players": "No player with this name was found.",
-        "no_stats": "The gametools API has no Battlefield 6 statistics for this account. Pick another account or try again after a match."
+        "no_stats": "The gametools API has no Battlefield 6 statistics for this account. Pick another account or try again after a match.",
+        "invalid_name": "Enter a name with 1 to {max} characters, without line breaks or other control characters."
       },
       "abort": {
         "entry_not_loaded": "The gametools API entry is not loaded. Reload it and try again.",

@@ -46,3 +46,11 @@ PLATFORM_NAMES = {
 
 # Treffer der Spielersuche, die im Auswahldialog stehen (OpenAPI: 1 bis 100)
 SEARCH_LIMIT = 25
+
+# Hoechstlaenge eines Spielernamens, bei der Eingabe und aus der API. Eine
+# Schutzgrenze gegen ueberlange Eingaben, keine Regel der Plattformen.
+NAME_MAX = 64
+
+# Bildserver, von denen die API Bilder nennt (Waffen, Fahrzeuge, Gadgets,
+# Rang-Abzeichen; alle in den Antworten vom 01./02.11.2026).
+IMAGE_HOSTS = frozenset({"cdn.gametools.network"})

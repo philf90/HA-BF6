@@ -7,6 +7,7 @@ man das Konto aus der Trefferliste und es werden nur die IDs gespeichert.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import voluptuous as vol
@@ -37,12 +38,32 @@ from .const import (
     CONF_PLATFORM,
     DOMAIN,
     MAIN_TITLE,
+    NAME_MAX,
     PLATFORM_NAMES,
     SEARCH_LIMIT,
     SUBENTRY_PLAYER,
 )
 
 NAME_SCHEMA = vol.Schema({vol.Required(CONF_NAME): TextSelector()})
+
+# Zeichen mit Bedeutung in Markdown. Das Frontend zeigt Beschreibungen als
+# Markdown (marked, danach filterXSS); ein Name wie "[x](https://...)" wuerde
+# sonst zum Link.
+_MARKDOWN = re.compile(r"([\\`*_{}\[\]()#+\-.!|<>~])")
+
+
+def markdown_text(text: str) -> str:
+    """Text fuer einen Platzhalter in einer Beschreibung, ohne Markdown-Wirkung."""
+    return _MARKDOWN.sub(r"\\\1", text)
+
+
+def valid_name(name: str) -> bool:
+    """Eingegebener Name: nicht leer, hoechstens NAME_MAX Zeichen, keine
+    Steuer- oder Richtungszeichen. Sonderzeichen sind erlaubt; die Abfrage
+    kodiert sie (aiohttp/yarl), es gibt keinen anderen Weg des Namens nach
+    aussen.
+    """
+    return 0 < len(name) <= NAME_MAX and not any(map(parsers.unsafe_char, name))
 
 
 class Bf6PlayerConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -115,6 +136,15 @@ class PlayerSubentryFlow(ConfigSubentryFlow):
         if user_input is not None:
             name = user_input[CONF_NAME].strip()
             found: list[dict[str, Any]] | None
+            if not valid_name(name):
+                return self.async_show_form(
+                    step_id="user",
+                    data_schema=self.add_suggested_values_to_schema(
+                        NAME_SCHEMA, user_input
+                    ),
+                    errors={"base": "invalid_name"},
+                    description_placeholders={"max": str(NAME_MAX)},
+                )
             try:
                 found = parsers.player_results(
                     await self._client.search_players(name, SEARCH_LIMIT)
@@ -145,6 +175,7 @@ class PlayerSubentryFlow(ConfigSubentryFlow):
             step_id="user",
             data_schema=self.add_suggested_values_to_schema(NAME_SCHEMA, user_input),
             errors=errors,
+            description_placeholders={"max": str(NAME_MAX)},
         )
 
     async def async_step_select(
@@ -192,7 +223,7 @@ class PlayerSubentryFlow(ConfigSubentryFlow):
             data_schema=self.add_suggested_values_to_schema(schema, user_input),
             errors=errors,
             description_placeholders={
-                "name": self._name,
+                "name": markdown_text(self._name),
                 "count": str(len(self._accounts)),
             },
         )
