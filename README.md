@@ -286,6 +286,11 @@ per ID, nie per Name:
   alle sechs Werte gleich den Werten der API.
 - **Unbekannte IDs** liefern HTTP 200 mit `hasResults: false` und lauter
   Nullen, keinen Fehler. Daraus wird `has_results`.
+- **Abzeichen:** Das Profil nennt zwei Zahlen, `badgeSummary.totalBadges`
+  und `playerCard.badges`. Die Integration nutzt `totalBadges`; das ist die
+  Zahl, die das Spiel anzeigt (Abgleich am 02.11.2026: Spiel 48,
+  `totalBadges` 48, `playerCard.badges` 120). Was `playerCard.badges`
+  zählt, ist nicht belegt.
 - **Daten je EA-Konto:** `/bf6/stats/` liefert die Werte zur `nucleus_id`
   (EA-Konto); `playerid` wird nur zurückgegeben. Geprüft am 02.11.2026 mit
   zwei öffentlichen Konten: vertauschte `playerid` bei gleicher
