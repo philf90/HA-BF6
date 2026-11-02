@@ -1,0 +1,57 @@
+<!doctype html>
+<!--
+  Quelle fuer assets/banner.png (2560 x 512) und assets/social-preview.png
+  (1280 x 640). Rendern: siehe render.js. Die Karten sind die echten Karten
+  der Integration (custom_components/bf6_player/frontend), gefuellt mit den
+  erfundenen Daten aus daten.js. Schriften (Saira Condensed, Inter; OFL) von
+  Google Fonts, Icons (Material Design Icons 7.4.47, Pictogrammers Free
+  License, Icons unter Apache 2.0) von jsDelivr.
+  Farben: dunkle Werte aus philf90/home-assistant design/palette.yaml.
+-->
+<html lang="de"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@800&family=Inter:wght@400;500;600;700&display=block">
+<style>
+  :root {
+    --rose: #e6a0c4; --text: #f2f5f8; --titel: #e7ecf3; --label: #b4c0cf; --sek: #8794a5;
+    --oben: #1b2231; --unten: #171d29;
+  }
+  html, body { margin: 0; background: transparent; }
+  body { font-family: Inter, system-ui, sans-serif; color: var(--text); }
+  .rahmen { position: relative; overflow: hidden; box-sizing: border-box; border-radius: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: radial-gradient(120% 140% at 82% 40%, color-mix(in srgb, var(--rose) 14%, transparent) 0%, transparent 45%),
+                linear-gradient(180deg, var(--oben) 0%, var(--unten) 60%); }
+  .banner .rahmen { width: 1280px; height: 256px; }
+  .social .rahmen { width: 1280px; height: 640px; border-radius: 0; border: 0; }
+  .text { position: absolute; z-index: 3; }
+  .titel { font-family: 'Saira Condensed', sans-serif; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; color: var(--titel); line-height: 0.95; white-space: nowrap; }
+  .titel b { color: var(--rose); font-weight: 800; }
+  .unter { font-weight: 500; color: var(--label); white-space: nowrap; }
+  .tags { font-weight: 600; color: var(--sek); text-transform: uppercase; white-space: nowrap; }
+  .tags i { color: var(--rose); font-style: normal; padding: 0 0.55em; }
+  .emblem { position: absolute; z-index: 3; }
+  .karte { position: absolute; width: 360px; transform-origin: top center; z-index: 2; filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.55)); }
+</style>
+<script>
+  // Platzhalter fuer ha-card und ha-icon (Home Assistant liefert sie sonst).
+  // ha-icon zeichnet den Pfad aus @mdi/js; Groesse ueber --mdc-icon-size wie
+  // in Home Assistant, direkt am Element, weil das Seiten-CSS nicht in den
+  // Shadow DOM der Karten wirkt.
+  window.MDI = {};
+  customElements.define("ha-card", class extends HTMLElement {});
+  customElements.define("ha-icon", class extends HTMLElement {
+    static get observedAttributes() { return ["icon"]; }
+    connectedCallback() { this.zeichnen(); }
+    attributeChangedCallback() { this.zeichnen(); }
+    zeichnen() {
+      const name = (this.getAttribute("icon") || "").replace("mdi:", "");
+      const key = "mdi" + name.split("-").map((t) => t[0].toUpperCase() + t.slice(1)).join("");
+      this.style.display = "inline-block";
+      this.style.width = this.style.height = "var(--mdc-icon-size, 24px)";
+      this.style.verticalAlign = "middle";
+      this.innerHTML = `<svg viewBox="0 0 24 24" style="display:block;width:100%;height:100%;fill:currentColor"><path d="${window.MDI[key] || ""}"/></svg>`;
+    }
+  });
+</script>
+<script type="module" src="banner.js"></script>
+</head><body></body></html>
