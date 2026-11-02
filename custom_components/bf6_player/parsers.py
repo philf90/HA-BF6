@@ -11,6 +11,7 @@ classes[All].kpm 1,96 beim selben Konto).
 
 from __future__ import annotations
 
+import math
 import re
 import unicodedata
 from datetime import UTC, datetime
@@ -29,6 +30,12 @@ MODE_AGGREGATES = frozenset({"gm_official"})
 
 _SEASON = re.compile(r"^Season(\d+)$")
 _BATTLE_PASS = re.compile(r"^BP(\d+)$")
+# Nur die Ziffern 0-9: str.isdigit() liesse auch "²" durch, das int() ablehnt
+# (ValueError statt None, Review 0.6.8).
+_DIGITS = re.compile(r"\d+", re.ASCII)
+# Zeitstempel ueber diesem Wert waeren in Sekunden nach dem Jahr 5000; die API
+# meint dann Millisekunden (heute liefert sie Sekunden, Stand 02.11.2026).
+_MILLISECONDS = 10**11
 
 
 def _int(value: Any) -> int | None:
@@ -39,15 +46,21 @@ def _int(value: Any) -> int | None:
         return value
     if isinstance(value, float) and value.is_integer():
         return int(value)
-    if isinstance(value, str) and value.strip().isdigit():
-        return int(value)
+    if isinstance(value, str) and _DIGITS.fullmatch(text := value.strip()):
+        return int(text)
     return None
 
 
 def _num(value: Any) -> float | None:
+    """Endliche Zahl, sonst None (json.loads laesst NaN und Infinity durch)."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
-    return float(value)
+    try:
+        number = float(value)
+    except OverflowError:
+        # int groesser als der Wertebereich von float
+        return None
+    return number if math.isfinite(number) else None
 
 
 def ratio(
@@ -57,7 +70,9 @@ def ratio(
     num, den = _num(numerator), _num(denominator)
     if num is None or not den:
         return None
-    return round(num / den * factor, digits)
+    result = num / den * factor
+    # Grenzwerte koennen trotz endlicher Eingaben ueberlaufen (1e308 / 1e-308)
+    return round(result, digits) if math.isfinite(result) else None
 
 
 def _text(value: Any) -> str | None:
@@ -98,11 +113,13 @@ def image_url(value: Any) -> str | None:
         return None
     try:
         parts = urlsplit(text)
+        # .port wirft ValueError bei "abc" oder ausserhalb 0-65535
+        port = parts.port
     except ValueError:
         return None
     if parts.scheme != "https" or parts.hostname not in IMAGE_HOSTS:
         return None
-    if parts.username or parts.password or parts.port not in (None, 443):
+    if parts.username or parts.password or port not in (None, 443):
         return None
     return text
 
@@ -116,7 +133,12 @@ def _datetime(value: Any) -> datetime | None:
             return None
         return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
     if (seconds := _int(value)) is not None:
-        return datetime.fromtimestamp(seconds, tz=UTC)
+        if seconds > _MILLISECONDS:
+            seconds //= 1000
+        try:
+            return datetime.fromtimestamp(seconds, tz=UTC)
+        except (OverflowError, OSError, ValueError):
+            return None
     return None
 
 
@@ -258,7 +280,9 @@ def modes(data: dict[str, Any]) -> list[dict[str, Any]]:
     result: list[dict[str, Any]] = []
     seen: dict[tuple[Any, ...], dict[str, Any]] = {}
     for item in _list(data, "gameModes"):
-        if item.get("id") in MODE_AGGREGATES:
+        # Nur Text kann ein Sammeleintrag sein; eine Liste als "id" waere
+        # nicht hashbar (TypeError beim Test gegen das frozenset).
+        if isinstance(item.get("id"), str) and item["id"] in MODE_AGGREGATES:
             continue
         name = _text(item.get("gamemodeName"))
         kills, deaths = _int(item.get("kills")), _int(item.get("deaths"))

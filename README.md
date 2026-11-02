@@ -11,9 +11,9 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.6.7.
+Version 0.6.8.
 
-> **Stand:** Version 0.6.7: Jeder Spieler ist ein Gerät mit 20 Sensoren,
+> **Stand:** Version 0.6.8: Jeder Spieler ist ein Gerät mit 20 Sensoren,
 > Rang-Abzeichen und den Ereignissen „Match beendet“ und „Rang gestiegen“
 > (siehe [Entitäten je Spieler](#entitäten-je-spieler)); dazu das Gerät
 > „BF6-Spielwelt“, Aktionen, Optionen, Diagnose, Reparaturhinweis und acht
@@ -131,8 +131,11 @@ der Installation.
 
 - **Takt:** Statistik alle 15 Minuten; die API cacht Antworten 600 s, öfter
   bringt keine neueren Werte. Profil stündlich; scheitert es, bleibt der
-  letzte Stand und die Statistik läuft weiter. Höchstens zwei Spieler
-  werden gleichzeitig abgefragt.
+  letzte Stand und die Statistik läuft weiter. Höchstens zwei Abfragen
+  laufen gleichzeitig, beim Start, im Takt und bei den Aktionen (seit
+  0.6.8; vorher nur beim Start). Antwortet die API mit HTTP 429 und
+  `Retry-After`, wartet der Spieler bzw. die Spielwelt so lange, mindestens
+  bis zum nächsten Takt und höchstens 6 Stunden.
 - **Nicht verfügbar** sind die Entitäten eines Spielers, wenn die API nicht
   antwortet oder zu seinem Konto keine Statistik liefert (`hasResults:
   false`). Die Plattform bleibt sichtbar.
@@ -193,7 +196,10 @@ liefern.
   spart nichts; einzelne Entitäten lassen sich in Home Assistant
   deaktivieren.
 - **`bf6_player.refresh`**: Spieler und Spielwelt sofort abfragen, wahlweise
-  nur bestimmte Geräte. Die API cacht Antworten 10 Minuten.
+  nur bestimmte Geräte. Die API cacht Antworten 10 Minuten. Seit 0.6.8
+  fasst die Aktion Aufrufe innerhalb von 10 Sekunden zusammen: Der erste
+  fragt sofort ab, alle weiteren ergeben zusammen eine Abfrage am Ende der
+  10 Sekunden.
 - **`bf6_player.get_player`**: Konten zu einem Namen nachschlagen (Name,
   IDs, Plattform, Erstellungsdatum, öffentlich), ohne etwas anzulegen; nur
   mit Antwort. Gleiche Namensprüfung wie im Dialog.
@@ -346,9 +352,16 @@ per ID, nie per Name:
   als `gm_oblit` und `gm_oblitall`, beide 1 Match, 20 Kills). Zusammengelegt
   wird nur bei gleichen Matches, Siegen, Niederlagen, Kills, Toden und
   Spielzeit; ungespielte Modi bleiben getrennt.
-- **Fehler:** HTTP 404 → nicht gefunden, HTTP 429 → Abfragelimit, andere
+- **Fehler:** HTTP 404 → nicht gefunden, HTTP 429 → Abfragelimit (mit
+  Wartezeit aus `Retry-After`, Sekunden oder HTTP-Datum), andere
   Statuscodes, Zeitüberschreitung (30 s), Verbindungsfehler und Antworten ohne
   JSON-Objekt → allgemeiner Fehler.
+- **Unpassende Werte** ergeben `None` statt eines Fehlers (seit 0.6.8 per
+  Fuzz-Test gesichert): Ganzzahlen nur aus den Ziffern 0–9, Quoten nur
+  endlich (kein `NaN`, kein `Infinity`), Zeitstempel über 10¹¹ gelten als
+  Millisekunden, Bildadressen mit ungültigem Port fallen weg. Scheitert die
+  Auswertung trotzdem, wirkt das wie ein API-Fehler: Die Entitäten des
+  Spielers sind nicht verfügbar, bei der Spielwelt bleibt der andere Teil.
 
 ## Sicherheit
 
@@ -385,7 +398,19 @@ Text sichtbar, kein Skript, kein fremdes Bild. Namen erscheinen nicht im Log.
 Automatische Tests laufen gegen Home Assistant 2026.2.3
 (`pytest-homeassistant-custom-component` 0.13.316).
 
-- **0.6.x:** 205 automatische Tests. 0.6.7: Plattform-Symbole mittig auf
+- **0.6.x:** 256 automatische Tests. 0.6.8: Befunde aus einem Code-Review
+  behoben. Auswertung: `_int` nur ASCII-Ziffern („²“ ergab `ValueError`),
+  Quoten nur endlich, Zeitstempel in Millisekunden, ungültiger Port in
+  Bildadressen, Liste als Modus-ID; ein Fuzz-Test verändert die
+  Testantworten zufällig mit festem Seed (400 Läufe je Antwort, einmalig
+  außerhalb der Tests 120.000 Läufe ohne Ausnahme). Last: Abfragelimit im
+  Client, `Retry-After` nach HTTP 429, `refresh` über den Debouncer.
+  Gegenprobe: Limit auf 1000 gesetzt, `async_refresh` statt
+  `async_request_refresh`, `retry_after` nicht weitergegeben, Spielwelt
+  fängt nur `GametoolsError`, `parsers.py` aus 0.6.7 – jedes Mal schlug
+  der zugehörige Test fehl (bei `parsers.py` 20 Tests). Gemessen mit 6
+  Spielern: gleichzeitige Abfragen vorher 2 / 6 / 6 (Start, Takt, Aktion),
+  jetzt 2 / 2 / 2. Nicht live gegen die API geprüft. 0.6.7: Plattform-Symbole mittig auf
   Großbuchstaben und Ziffern (`vertical-align: 0.09em`); ein Test verlangt
   die Anhebung an beiden Inline-Symbolen und verbietet `vertical-align` an
   allen anderen `ha-icon`. Gegenprobe: Anhebung entfernt, alte Regel

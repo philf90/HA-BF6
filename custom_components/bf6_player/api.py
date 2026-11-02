@@ -8,12 +8,15 @@ Antworten cacht Cloudflare 600 s.
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 import aiohttp
 
-from .const import API_BASE, REQUEST_TIMEOUT
+from .const import API_BASE, PARALLEL_REQUESTS, REQUEST_TIMEOUT
 
 
 class GametoolsError(Exception):
@@ -29,7 +32,31 @@ class GametoolsNotFound(GametoolsError):
 
 
 class GametoolsRateLimited(GametoolsError):
-    """HTTP 429. Die API nennt kein Limit; der Aufrufer wartet bis zum Takt."""
+    """HTTP 429. Die API nennt kein Limit.
+
+    retry_after: Sekunden aus dem Header Retry-After, sonst None. Der
+    Coordinator wartet mindestens so lange, hoechstens bis zum naechsten Takt
+    ist zu kurz (seit 0.6.8).
+    """
+
+    def __init__(self, path: str, retry_after: float | None = None) -> None:
+        super().__init__(path)
+        self.retry_after = retry_after
+
+
+def retry_after(value: str | None, now: datetime | None = None) -> float | None:
+    """Sekunden aus einem Retry-After-Header: Zahl oder HTTP-Datum (RFC 9110)."""
+    if not value or not (text := value.strip()):
+        return None
+    if text.isascii() and text.isdigit():
+        return float(text)
+    try:
+        when = parsedate_to_datetime(text)
+    except (TypeError, ValueError, IndexError):
+        return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=UTC)
+    return max(0.0, (when - (now or datetime.now(UTC))).total_seconds())
 
 
 @dataclass(frozen=True)
@@ -54,12 +81,25 @@ class PlayerRef:
 
 
 class GametoolsClient:
-    """Fragt die BF6-Endpunkte der gametools API ab."""
+    """Fragt die BF6-Endpunkte der gametools API ab.
 
-    def __init__(self, session: aiohttp.ClientSession) -> None:
+    Alle Abfragen eines Clients teilen sich ein Limit (PARALLEL_REQUESTS):
+    Start, regulaerer Takt, Aktionen und Dialog nutzen denselben Client.
+    """
+
+    def __init__(
+        self, session: aiohttp.ClientSession, parallel: int = PARALLEL_REQUESTS
+    ) -> None:
         self._session = session
+        self._limit = asyncio.Semaphore(parallel)
 
     async def _get(self, path: str, params: dict[str, str] | None = None) -> Any:
+        async with self._limit:
+            return await self._get_unlimited(path, params)
+
+    async def _get_unlimited(
+        self, path: str, params: dict[str, str] | None = None
+    ) -> Any:
         try:
             async with self._session.get(
                 f"{API_BASE}{path}",
@@ -69,7 +109,9 @@ class GametoolsClient:
                 if resp.status == 404:
                     raise GametoolsNotFound(path)
                 if resp.status == 429:
-                    raise GametoolsRateLimited(path)
+                    raise GametoolsRateLimited(
+                        path, retry_after(resp.headers.get("Retry-After"))
+                    )
                 if resp.status != 200:
                     raise GametoolsError(f"{path}: HTTP {resp.status}")
                 data = await resp.json(content_type=None)
