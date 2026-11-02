@@ -1,12 +1,21 @@
 """Tests fuer parsers.py: Kennzahlen und Listen aus den API-Antworten."""
 
+import copy
 from datetime import UTC, datetime
 
 import pytest
 
 from custom_components.bf6_player import parsers
 
-from .conftest import EVENTS, PROFILE, SEARCH, STATS, STATS_EMPTY, STATUS
+from .conftest import (
+    EVENTS,
+    PROFILE,
+    PROFILE_REDUZIERT,
+    SEARCH,
+    STATS,
+    STATS_EMPTY,
+    STATUS,
+)
 
 
 def test_core_values() -> None:
@@ -157,6 +166,34 @@ def test_profile_empty() -> None:
     assert profile["badges"] is None
     assert profile["ranked"] == []
     assert parsers.player_profile(None)["rank_name"] is None
+
+
+def test_profile_reduced() -> None:
+    """Privates Konto (0.6.5): Rang, Rangname und Bild aus der verkuerzten
+    Antwort; das flache "badges" bleibt ungenutzt, weil es nicht der Zahl im
+    Spiel entsprach."""
+    assert parsers.player_profile(PROFILE_REDUZIERT) == {
+        "rank": 77,
+        "rank_name": "Testoberst",
+        "rank_image": "https://cdn.gametools.network/ranks/bf6/p_lg.png",
+        "dog_tags": None,
+        "badges": None,
+        "ranked": [],
+    }
+    # Bildadressen auch hier nur von cdn.gametools.network
+    fremd = copy.deepcopy(PROFILE_REDUZIERT)
+    fremd["other"][0]["playerProfiles"][0]["rankImage"]["large"] = (
+        "https://evil.example/r.png"
+    )
+    assert parsers.player_profile(fremd)["rank_image"] is None
+    # Leere oder kaputte Formen: nichts, kein Fehler
+    for leer in (
+        {"other": []},
+        {"other": [{}]},
+        {"other": "x"},
+        {"other": [{"playerProfiles": []}]},
+    ):
+        assert parsers.player_profile(leer)["rank"] is None
 
 
 def test_season() -> None:

@@ -329,12 +329,43 @@ def player_stats(data: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
+def _reduced_profile(data: dict[str, Any]) -> dict[str, Any] | None:
+    """Verkuerzte Antwort von /bf6/profile/ oder None.
+
+    Live am 02.11.2026 bei einem privaten Konto: statt "playerProfiles"
+    kommt {"other": [{"playerProfiles": [{"rank", "rankName", "rankImage",
+    "badges"}]}]}, flach und ohne Dog Tags, badgeSummary und Ranked-Rang.
+    """
+    for other in _list(data, "other"):
+        profiles = _list(other, "playerProfiles")
+        if profiles:
+            return profiles[0]
+    return None
+
+
 def player_profile(data: dict[str, Any] | None) -> dict[str, Any]:
-    """Rang, Dog Tags, Abzeichen und Ranked-Rang aus /bf6/profile/."""
+    """Rang, Dog Tags, Abzeichen und Ranked-Rang aus /bf6/profile/.
+
+    Aus der verkuerzten Antwort (privates Konto) kommen nur Rang, Rangname
+    und Rang-Bild. Ihr flaches Feld "badges" bleibt ungenutzt: Es heisst wie
+    playerCard.badges, und das entsprach beim Abgleich am 02.11.2026 nicht
+    der Zahl im Spiel (120 statt 48).
+    """
     profiles = _list(data or {}, "playerProfiles")
     profile = profiles[0] if profiles else {}
     card = profile.get("playerCard")
     card = card if isinstance(card, dict) else {}
+    if not profiles and (reduced := _reduced_profile(data or {})) is not None:
+        images = reduced.get("rankImage")
+        images = images if isinstance(images, dict) else {}
+        return {
+            "rank": _int(reduced.get("rank")),
+            "rank_name": _text(reduced.get("rankName")),
+            "rank_image": image_url(images.get("large")),
+            "dog_tags": None,
+            "badges": None,
+            "ranked": [],
+        }
     images = card.get("rankImage")
     images = images if isinstance(images, dict) else {}
     tags = profile.get("totalDogTags")
