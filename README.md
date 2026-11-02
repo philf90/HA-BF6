@@ -7,11 +7,12 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.1.0.
+Version 0.2.0.
 
-> **Stand:** Version 0.1.0 ist das Grundgerüst. Die Integration lässt sich
-> installieren und der Eintrag „gametools API“ anlegen; Spieler und Sensoren
-> gibt es noch nicht. Den Plan zeigt die Recherche in
+> **Stand:** Version 0.2.0 kann die gametools API abfragen und die Antworten
+> auswerten (siehe [Abfragen und Auswertung](#abfragen-und-auswertung)). Die
+> Integration lässt sich installieren und der Eintrag „gametools API“ anlegen;
+> Spieler und Sensoren gibt es noch nicht. Den Plan zeigt die Recherche in
 > [`docs/bf6-api-recherche.html`](docs/bf6-api-recherche.html).
 
 > **KI-Hinweis:** Dieses Projekt entsteht mit Claude Code. Code, Tests und
@@ -68,6 +69,35 @@ ist kein Produkt von EA, DICE oder Community Network. Fragen zur API:
   nicht eindeutig sind. Jeder Spieler wird ein eigenes Gerät.
 - **Gerät „BF6-Spielwelt“** (geplant): Saison, Battle Pass und Portal-Server.
 
+## Abfragen und Auswertung
+
+Seit 0.2.0 (`api.py`, `parsers.py`), noch ohne Entitäten. Abgefragt wird immer
+per ID, nie per Name:
+
+| Endpunkt | Parameter | Auswertung |
+|---|---|---|
+| `/bf6/player/` | `name`, `limit` | Konten mit Persona-ID, Nucleus-ID, Plattform, Name, Erstellungsdatum, öffentlich ja/nein |
+| `/bf6/stats/` | `playerid`, `nucleus_id`, `platform`, `format_values=false`, `seperation` | Kennzahlen, Top 5 Waffen, Fahrzeuge und Gadgets, Klassen, Karten, Modi |
+| `/bf6/profile/` | `playerid`, `nucleus_id`, `platform` | Rang, Rangname, Rang-Bild, Dog Tags, Abzeichen, Ranked-Rang |
+| `/bf6/gameevents/` | – | Laufende Saison mit Start und Ende, Battle Pass |
+| `/bf6/status/` | – | Server, Spieler und Warteschlange der Portal-Server |
+
+- **Selbst gerechnet** aus den Zählern: K/D (Kills ÷ Deaths), KPM (Kills ÷
+  Spielminuten), Winrate (Siege ÷ Matches), Accuracy (Treffer ÷ Schüsse),
+  Headshot-Quote (Headshots ÷ Kills) und Anteil der Kills gegen Menschen. Die
+  API rechnet mit unterschiedlichen Zeitbasen (KPM 1,55 oben, 1,96 bei den
+  Klassen desselben Kontos). Gegen echte Antworten vom 01.11.2026 geprüft:
+  alle sechs Werte gleich den Werten der API.
+- **Unbekannte IDs** liefern HTTP 200 mit `hasResults: false` und lauter
+  Nullen, keinen Fehler. Daraus wird `has_results`.
+- **Sammeleinträge** fallen weg: Klasse „All“ (`kit`), Karte „All“ (`lvlmp`),
+  Modus „Official“ (`gm_official`, alle offiziellen Matches zusammen).
+- **Doppelte Karten** mit gleichen Zahlen werden zusammengelegt, der zweite
+  Name steht unter `aliases` (am 01.11.2026 „Fort Lyndon“ und „REDSEC“).
+- **Fehler:** HTTP 404 → nicht gefunden, HTTP 429 → Abfragelimit, andere
+  Statuscodes, Zeitüberschreitung (30 s), Verbindungsfehler und Antworten ohne
+  JSON-Objekt → allgemeiner Fehler.
+
 ## Grenzen
 
 - Inoffizielle Datenquelle ohne zugesagte Verfügbarkeit; ändert EA oder
@@ -80,6 +110,13 @@ ist kein Produkt von EA, DICE oder Community Network. Fragen zur API:
 Automatische Tests laufen gegen Home Assistant 2026.2.3
 (`pytest-homeassistant-custom-component` 0.13.316).
 
+- **0.2.x:** 72 automatische Tests. 0.2.0: API-Client (Parameter, Fehler
+  404/429/5xx, kein JSON, Zeitüberschreitung, Verbindungsfehler) und
+  Auswertung mit erfundenen Werten im Aufbau echter Antworten. Gegenprobe:
+  Prüfung auf `hasResults`, Zusammenlegen doppelter Karten, Parameter
+  `format_values=false` und Filter für „Official“ einzeln entfernt – jedes
+  Mal schlug ein Test fehl. Zusätzlich gegen echte Antworten vom 01. und
+  02.11.2026 laufen lassen. Nicht live in Home Assistant geprüft.
 - **0.1.x:** 38 automatische Tests. 0.1.0: Einrichtungsdialog (Anlegen, kein
   zweiter Eintrag), Laden und Entladen, Prüfung der PR-Vorlage und
   Konsistenz von Version, README, Versionshinweisen, Übersetzungen und

@@ -1,0 +1,340 @@
+"""Auswertung der Antworten der gametools API.
+
+Feldnamen aus echten Antworten vom 01. und 02.11.2026 (Schreibweisen der API
+wie "loses", "humanPrecentage" bleiben hier gekapselt). Fehlende oder
+unpassende Felder ergeben None oder eine leere Liste statt eines Fehlers.
+
+Kennzahlen rechnet die Integration selbst aus den Zaehlern: Die API rechnet
+mit unterschiedlichen Zeitbasen (killsPerMinute 1,55 gegenueber
+classes[All].kpm 1,96 beim selben Konto).
+"""
+
+from __future__ import annotations
+
+import re
+from datetime import UTC, datetime
+from typing import Any
+
+from .const import TOP_COUNT
+
+# Sammeleintraege, die keine einzelne Klasse, Karte oder keinen Modus meinen
+# (IDs aus den Antworten vom 01.11.2026).
+CLASS_ALL = "kit"
+MAP_ALL = "lvlmp"
+# "Official" (gm_official) zaehlt alle offiziellen Multiplayer-Matches
+# zusammen (223 = Gruppe "Multiplayer" beim selben Konto).
+MODE_AGGREGATES = frozenset({"gm_official"})
+
+_SEASON = re.compile(r"^Season(\d+)$")
+_BATTLE_PASS = re.compile(r"^BP(\d+)$")
+
+
+def _int(value: Any) -> int | None:
+    """Ganzzahl auch aus Text ("794397421"), sonst None; bool zaehlt nicht."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    if isinstance(value, str) and value.strip().isdigit():
+        return int(value)
+    return None
+
+
+def _num(value: Any) -> float | None:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value)
+
+
+def ratio(
+    numerator: Any, denominator: Any, factor: float = 1, digits: int = 2
+) -> float | None:
+    """numerator / denominator * factor, gerundet; None ohne gueltigen Nenner."""
+    num, den = _num(numerator), _num(denominator)
+    if num is None or not den:
+        return None
+    return round(num / den * factor, digits)
+
+
+def _text(value: Any) -> str | None:
+    return value.strip() or None if isinstance(value, str) else None
+
+
+def _datetime(value: Any) -> datetime | None:
+    """ISO-Zeit ("2012-09-30T15:52:49Z") oder Sekunden seit 1970."""
+    if isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=UTC)
+    if (seconds := _int(value)) is not None:
+        return datetime.fromtimestamp(seconds, tz=UTC)
+    return None
+
+
+def _list(data: dict[str, Any], key: str) -> list[dict[str, Any]]:
+    value = data.get(key)
+    return (
+        [item for item in value if isinstance(item, dict)]
+        if isinstance(value, list)
+        else []
+    )
+
+
+def player_results(data: dict[str, Any] | None) -> list[dict[str, Any]]:
+    """Treffer der Spielersuche (/bf6/player/).
+
+    IDs kommen dort als Text. Treffer ohne gueltige IDs fallen weg.
+    """
+    results = []
+    for item in _list(data or {}, "results"):
+        persona_id = _int(item.get("personaId"))
+        nucleus_id = _int(item.get("nucleusId"))
+        platform = _text(item.get("platform"))
+        if persona_id is None or nucleus_id is None or platform is None:
+            continue
+        results.append(
+            {
+                "persona_id": persona_id,
+                "nucleus_id": nucleus_id,
+                "platform": platform,
+                "name": _text(item.get("displayName")) or _text(item.get("username")),
+                "created": _datetime(item.get("createdAt")),
+                "public": item.get("visibility") == "EVERYONE",
+            }
+        )
+    return results
+
+
+def _weapon(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "name": _text(item.get("weaponName")) or _text(item.get("name")),
+        "type": _text(item.get("type")),
+        "kills": _int(item.get("kills")),
+        "accuracy": ratio(item.get("shotsHit"), item.get("shotsFired"), 100),
+        "headshot_rate": ratio(item.get("headshotKills"), item.get("kills"), 100),
+        "kpm": ratio(item.get("kills"), item.get("timeEquipped"), 60),
+        "image": _text(item.get("image")),
+    }
+
+
+def _vehicle(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "name": _text(item.get("vehicleName")) or _text(item.get("name")),
+        "type": _text(item.get("type")),
+        "kills": _int(item.get("kills")),
+        "seconds": _int(item.get("timeIn")),
+        "image": _text(item.get("image")),
+    }
+
+
+def _gadget(item: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "name": _text(item.get("gadgetName")) or _text(item.get("name")),
+        "type": _text(item.get("type")),
+        "kills": _int(item.get("kills")),
+        "image": _text(item.get("image")),
+    }
+
+
+def _top(items: list[dict[str, Any]], count: int = TOP_COUNT) -> list[dict[str, Any]]:
+    """Die count Eintraege mit den meisten Kills, ohne Eintraege ohne Kill."""
+    ranked = [item for item in items if (item.get("kills") or 0) > 0]
+    ranked.sort(key=lambda item: item["kills"], reverse=True)
+    return ranked[:count]
+
+
+def classes(data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Klassen ohne den Sammeleintrag, nach Spielzeit absteigend."""
+    result = []
+    for item in _list(data, "classes"):
+        if item.get("id") == CLASS_ALL:
+            continue
+        kills, deaths = item.get("kills"), item.get("deaths")
+        result.append(
+            {
+                "name": _text(item.get("className")) or _text(item.get("name")),
+                "kills": _int(kills),
+                "deaths": _int(deaths),
+                "kd": ratio(kills, deaths),
+                "kpm": ratio(kills, item.get("secondsPlayed"), 60),
+                "seconds": _int(item.get("secondsPlayed")),
+            }
+        )
+    result.sort(key=lambda item: item["seconds"] or 0, reverse=True)
+    return result
+
+
+def maps(data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Karten ohne Sammeleintrag, nach Matches absteigend.
+
+    Doppelte Eintraege mit gleichen Zahlen (am 01.11.2026 "Fort Lyndon" und
+    "REDSEC", 28 Matches, 4 Siege) werden zu einem mit "aliases".
+    """
+    result: list[dict[str, Any]] = []
+    seen: dict[tuple[Any, ...], dict[str, Any]] = {}
+    for item in _list(data, "maps"):
+        if item.get("id") == MAP_ALL:
+            continue
+        name = _text(item.get("mapName")) or _text(item.get("name"))
+        wins, losses = _int(item.get("wins")), _int(item.get("losses"))
+        matches = _int(item.get("matches"))
+        seconds = _int(item.get("secondsPlayed"))
+        key = (wins, losses, matches, seconds)
+        if matches and key in seen:
+            seen[key]["aliases"].append(name)
+            continue
+        entry = {
+            "name": name,
+            "aliases": [],
+            "matches": matches,
+            "wins": wins,
+            "losses": losses,
+            "win_rate": ratio(wins, matches, 100),
+            "seconds": seconds,
+        }
+        seen[key] = entry
+        result.append(entry)
+    result.sort(key=lambda item: item["matches"] or 0, reverse=True)
+    return result
+
+
+def modes(data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Spielmodi ohne Sammeleintraege, nach Matches absteigend."""
+    result = []
+    for item in _list(data, "gameModes"):
+        if item.get("id") in MODE_AGGREGATES:
+            continue
+        kills, matches = item.get("kills"), item.get("matches")
+        result.append(
+            {
+                "name": _text(item.get("gamemodeName")),
+                "matches": _int(matches),
+                "wins": _int(item.get("wins")),
+                "losses": _int(item.get("losses")),
+                "win_rate": ratio(item.get("wins"), matches, 100),
+                "kills": _int(kills),
+                "kd": ratio(kills, item.get("deaths")),
+            }
+        )
+    result.sort(key=lambda item: item["matches"] or 0, reverse=True)
+    return result
+
+
+def player_stats(data: dict[str, Any] | None) -> dict[str, Any]:
+    """Kennzahlen eines Kontos aus /bf6/stats/.
+
+    has_results ist False, wenn die API zu den IDs nichts kennt: Unbekannte
+    IDs liefern HTTP 200 mit hasResults = false und lauter Nullen.
+    """
+    data = data or {}
+    kills, deaths = data.get("kills"), data.get("deaths")
+    matches, seconds = data.get("matchesPlayed"), data.get("secondsPlayed")
+    divided = data.get("dividedKills")
+    human_kills = divided.get("human") if isinstance(divided, dict) else None
+    xp = _list(data, "XP")
+    class_list = classes(data)
+    return {
+        "has_results": data.get("hasResults") is True,
+        "kills": _int(kills),
+        "deaths": _int(deaths),
+        "assists": _int(data.get("assists")),
+        "revives": _int(data.get("revives")),
+        "wins": _int(data.get("wins")),
+        "losses": _int(data.get("loses")),
+        "matches": _int(matches),
+        "seconds_played": _int(seconds),
+        "score": _int(data.get("score")),
+        "xp": _int(xp[0].get("total")) if xp else None,
+        "kd": ratio(kills, deaths),
+        "kpm": ratio(kills, seconds, 60),
+        "win_rate": ratio(data.get("wins"), matches, 100),
+        "accuracy": ratio(data.get("shotsHit"), data.get("shotsFired"), 100),
+        "headshot_rate": ratio(data.get("headShots"), kills, 100),
+        "human_kill_rate": ratio(human_kills, kills, 100),
+        "weapons": _top([_weapon(item) for item in _list(data, "weapons")]),
+        "vehicles": _top([_vehicle(item) for item in _list(data, "vehicles")]),
+        "gadgets": _top([_gadget(item) for item in _list(data, "gadgets")]),
+        "classes": class_list,
+        "favorite_class": class_list[0]["name"]
+        if class_list and class_list[0]["seconds"]
+        else None,
+        "maps": maps(data),
+        "modes": modes(data),
+    }
+
+
+def player_profile(data: dict[str, Any] | None) -> dict[str, Any]:
+    """Rang, Dog Tags, Abzeichen und Ranked-Rang aus /bf6/profile/."""
+    profiles = _list(data or {}, "playerProfiles")
+    profile = profiles[0] if profiles else {}
+    card = profile.get("playerCard")
+    card = card if isinstance(card, dict) else {}
+    images = card.get("rankImage")
+    images = images if isinstance(images, dict) else {}
+    tags = profile.get("totalDogTags")
+    badges = profile.get("badgeSummary")
+    return {
+        "rank": _int(card.get("rank")),
+        "rank_name": _text(profile.get("rankName")),
+        "rank_image": _text(images.get("large")),
+        "dog_tags": _int(tags.get("intValue")) if isinstance(tags, dict) else None,
+        "badges": _int(badges.get("totalBadges")) if isinstance(badges, dict) else None,
+        "ranked": [
+            {
+                "season": _text(item.get("type")),
+                "mode": _text(item.get("modeName")),
+                "rank": _text(item.get("rankName")),
+            }
+            for item in _list(profile, "competitiveRanks")
+        ],
+    }
+
+
+def _event_window(event: dict[str, Any]) -> tuple[datetime | None, datetime | None]:
+    window = event.get("validUntil")
+    window = window if isinstance(window, dict) else {}
+
+    def edge(key: str) -> datetime | None:
+        value = window.get(key)
+        return _datetime(value.get("value")) if isinstance(value, dict) else None
+
+    return edge("start"), edge("end")
+
+
+def season(data: dict[str, Any] | None) -> dict[str, Any] | None:
+    """Laufende Saison und Battle Pass aus /bf6/gameevents/.
+
+    Am 02.11.2026: "Season5" und "BP05", beide aktiv vom 13.10.2026 bis
+    19.01.2027 (Feld validUntil.start.value / end.value in Sekunden).
+    """
+    current = None
+    battle_pass = None
+    for event in _list(data or {}, "events"):
+        name = event.get("name")
+        if event.get("active") is not True or not isinstance(name, str):
+            continue
+        if (match := _SEASON.match(name)) and current is None:
+            start, end = _event_window(event)
+            current = {"number": int(match.group(1)), "start": start, "end": end}
+        elif (match := _BATTLE_PASS.match(name)) and battle_pass is None:
+            battle_pass = int(match.group(1))
+    if current is None:
+        return None
+    return {**current, "battle_pass": battle_pass}
+
+
+def portal_status(data: dict[str, Any] | None) -> dict[str, Any]:
+    """Server, Spieler und Warteschlange aller Portal-Regionen (/bf6/status/)."""
+    regions = (data or {}).get("regions")
+    total = regions.get("ALL") if isinstance(regions, dict) else None
+    amounts = total.get("amounts") if isinstance(total, dict) else None
+    amounts = amounts if isinstance(amounts, dict) else {}
+    return {
+        "servers": _int(amounts.get("serverAmount")),
+        "players": _int(amounts.get("soldierAmount")),
+        "queue": _int(amounts.get("queueAmount")),
+    }
