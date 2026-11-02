@@ -1,7 +1,8 @@
 <!doctype html>
 <!--
   Quelle fuer assets/banner.png (2560 x 512) und assets/social-preview.png
-  (1280 x 640). Rendern: siehe render.js. Die Karten sind die echten Karten
+  (1280 x 640); das Vorschaubild steht in vorschau.html. Rendern: siehe
+  render.js. Die Karten sind die echten Karten
   der Integration (custom_components/bf6_player/frontend), gefuellt mit den
   erfundenen Daten aus daten.js. Schriften (Saira Condensed, Inter; OFL) von
   Google Fonts, Icons (Material Design Icons 7.4.47, Pictogrammers Free
@@ -32,26 +33,5 @@
   .emblem { position: absolute; z-index: 3; }
   .karte { position: absolute; width: 360px; transform-origin: top center; z-index: 2; filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.55)); }
 </style>
-<script>
-  // Platzhalter fuer ha-card und ha-icon (Home Assistant liefert sie sonst).
-  // ha-icon zeichnet den Pfad aus @mdi/js; Groesse ueber --mdc-icon-size wie
-  // in Home Assistant, direkt am Element, weil das Seiten-CSS nicht in den
-  // Shadow DOM der Karten wirkt.
-  window.MDI = {};
-  customElements.define("ha-card", class extends HTMLElement {});
-  customElements.define("ha-icon", class extends HTMLElement {
-    static get observedAttributes() { return ["icon"]; }
-    connectedCallback() { this.zeichnen(); }
-    attributeChangedCallback() { this.zeichnen(); }
-    zeichnen() {
-      const name = (this.getAttribute("icon") || "").replace("mdi:", "");
-      const key = "mdi" + name.split("-").map((t) => t[0].toUpperCase() + t.slice(1)).join("");
-      this.style.display = "inline-block";
-      this.style.width = this.style.height = "var(--mdc-icon-size, 24px)";
-      this.style.verticalAlign = "middle";
-      this.innerHTML = `<svg viewBox="0 0 24 24" style="display:block;width:100%;height:100%;fill:currentColor"><path d="${window.MDI[key] || ""}"/></svg>`;
-    }
-  });
-</script>
 <script type="module" src="banner.js"></script>
 </head><body></body></html>

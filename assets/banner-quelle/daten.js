@@ -40,12 +40,15 @@ geraet("welt", "BF6-Spielwelt", "Battlefield 6", {
   season_end: ["2027-01-19T11:59:00+00:00", { season: 5, season_start: "2026-10-13T08:00:00+00:00", battle_pass: 5 }],
   portal_servers: [1493], portal_players: [3120],
 });
+// Langzeitstatistik fuer die Verlauf-Karte: 30 Tage, K/D leicht steigend mit
+// kleinen Schwankungen, zwei Tage ohne Spiel
 function statistik(msg) {
   const id = msg.statistic_ids[0], out = [];
   for (let k = 29; k >= 0; k--) {
-    if ([3, 4, 11, 18, 19, 25].includes(k)) continue;
+    if (k === 9 || k === 21) continue;
+    const i = 29 - k;
     const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - k);
-    out.push({ start: d.getTime(), mean: 1.28 + Math.sin((29 - k) / 4.5) * 0.12 + (29 - k) * 0.008, change: 20 + ((k * 53) % 70) });
+    out.push({ start: d.getTime(), mean: 1.31 + 0.17 * (i / 29) + 0.03 * Math.sin(i * 0.9) + 0.018 * Math.sin(i * 2.3 + 1), change: 20 + ((k * 53) % 70) });
   }
   return { [id]: out };
 }
