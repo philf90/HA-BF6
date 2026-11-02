@@ -606,10 +606,15 @@ oder von Hand; der Text kommt aus `.github/release-notes/v<Version>.md`.
 - `platzhalter.js` baut `ha-icon` und `ha-svg-icon` wie das HA-Frontend
   nach (Shadow DOM, `inline-flex`, `vertical-align: middle`), damit Größe
   und Ausrichtung der Symbole in den Bildern denen in Home Assistant
-  entsprechen (seit 0.6.6). Offen: Die Anhebung der Plattform-Symbole aus
-  0.6.7 erscheint in den gerenderten Bildern nicht, obwohl Chromium sie im
-  Layout meldet; außerhalb dieser Seiten wird sie gezeichnet. Die Bilder
-  sind deshalb unverändert, die Ursache ist nicht geklärt.
+  entsprechen (seit 0.6.6).
+- `render.js` vergrößert mit CSS-`zoom` statt mit der emulierten
+  Pixeldichte von Playwright. Mit emulierter Dichte setzt Chromium die
+  Symbole nur auf ganze CSS-Pixel, den Text aber feiner; die Anhebung der
+  Plattform-Symbole aus 0.6.7 (1,1 px) ging dabei verloren. Mit `zoom` wird
+  wie auf einem echten Display auf Bildpunkte gerundet. Gemessen im
+  Vorschaubild: Symbolmitte gegen Versalmitte vorher +0,56 bis +1,38 px,
+  jetzt −0,14 bis +0,38 px; im Banner vorher +0,8, jetzt +0,2 px. Die Social
+  Preview (1-fache Dichte) bleibt unverändert.
 
 ## KI-Hinweis
 

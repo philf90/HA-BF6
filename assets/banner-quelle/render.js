@@ -24,10 +24,16 @@ const BILDER = [
   const fehler = [];
   for (const b of BILDER) {
     if (nur && b.datei !== nur) continue;
-    const seite = await browser.newPage({ viewport: { width: b.breite, height: b.hoehe }, deviceScaleFactor: b.dichte });
+    // Dichte ueber CSS-zoom statt deviceScaleFactor: Mit emulierter Dichte
+    // setzt Chromium Symbole (SVG) nur auf ganze CSS-Pixel, Text aber feiner;
+    // die Anhebung der Plattform-Symbole (0,09 em) ginge so verloren. Mit zoom
+    // wird wie auf einem echten Display auf Bildpunkte gerundet.
+    const seite = await browser.newPage({ viewport: { width: b.breite * b.dichte, height: b.hoehe * b.dichte }, deviceScaleFactor: 1 });
     seite.on("pageerror", (e) => fehler.push(`${b.datei}: ${e.message}`));
     await seite.goto(`${BASIS}/${b.seite}`);
+    await seite.evaluate((z) => { document.documentElement.style.zoom = z; }, b.dichte);
     await seite.waitForFunction(() => window.fertig, null, { timeout: 30000 });
+    await seite.waitForTimeout(300);
     const geladen = await seite.evaluate(() => [...document.fonts].filter((x) => x.status === "loaded").map((x) => x.family.replace(/"/g, "")));
     for (const s of b.schriften) {
       if (!geladen.includes(s)) fehler.push(`${b.datei}: Schrift ${s} nicht geladen`);
