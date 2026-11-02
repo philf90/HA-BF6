@@ -7,9 +7,9 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.6.0.
+Version 0.6.1.
 
-> **Stand:** Version 0.6.0: Jeder Spieler ist ein Gerät mit 20 Sensoren,
+> **Stand:** Version 0.6.1: Jeder Spieler ist ein Gerät mit 20 Sensoren,
 > Rang-Abzeichen und den Ereignissen „Match beendet“ und „Rang gestiegen“
 > (siehe [Entitäten je Spieler](#entitäten-je-spieler)); dazu das Gerät
 > „BF6-Spielwelt“, Aktionen, Optionen, Diagnose, Reparaturhinweis und acht
@@ -308,7 +308,21 @@ Text sichtbar, kein Skript, kein fremdes Bild. Namen erscheinen nicht im Log.
 Automatische Tests laufen gegen Home Assistant 2026.2.3
 (`pytest-homeassistant-custom-component` 0.13.316).
 
-- **0.6.x:** 189 automatische Tests. 0.6.0: Karten ausgeliefert und mit
+- **0.6.x:** 189 automatische Tests. 0.6.1: Die Karte „BF6 Verlauf“ zeigte
+  bei nur einem Wert (erster Tag der Langzeitstatistik) keine Linie und
+  legte gleiche Werte an den unteren Rand; jetzt eine waagrechte Linie in
+  der Mitte. Lokal in Chromium mit 1, 3 gleichen und 30 Werten gerendert
+  (Linie 310 px breit statt unsichtbar); kein automatischer Test, weil die
+  Karten nicht in pytest laufen. 0.6.0 **live geprüft** (02.11.2026, Home
+  Assistant 2026.10.4, HACS v0.6.0): Attribute `maps` (20 Karten, „Fort
+  Lyndon“ mit Alias „REDSEC“), `modes` (16 Modi, „Obliteration“ einmal)
+  und `classes` (4 Klassen) vorhanden, Langzeitstatistik liefert `start`
+  als Zahl in ms (wie in der Karte behandelt), dabei der Fehler im Verlauf
+  gefunden; keine Fehler im Log. **„Match beendet“ live ausgelöst**
+  (10:47 UTC, noch unter 0.5.1): 1 Match, Niederlage, 16 Kills, 10 Tode,
+  11 Assists, 16 Wiederbelebungen, 22.175 XP, 1.632 s, K/D 1,6 – jeder
+  Wert gleich dem Zuwachs der Sensoren. Die Karten selbst (Kartenwähler,
+  Editor, Darstellung in der App) noch nicht gesehen. 0.6.0: Karten ausgeliefert und mit
   Version im Pfad angemeldet (ohne Frontend und ohne http nicht), alle
   Dateien unter `frontend/` gelistet, jede Karte lädt die gemeinsamen Teile
   mit ihrer eigenen Version, beide Sprachen, Plattform-Symbole und -Namen
