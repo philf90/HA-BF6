@@ -78,7 +78,8 @@ ist kein Produkt von EA, DICE oder Community Network. Fragen zur API:
 ## Aufbau
 
 - **Haupteintrag „gametools API“** (seit 0.1.0): einmalig, ohne Zugangsdaten.
-  Später mit den Optionen für Takte und Gruppen.
+  Seit 0.5.0 mit Optionen für die Takte; abschaltbare Gruppen gibt es nicht
+  (siehe [Optionen, Aktionen, Diagnose](#optionen-aktionen-diagnose)).
 - **Untereintrag je Spieler** (seit 0.3.0): Name suchen, Konto aus der
   Trefferliste wählen. Gespeichert werden Persona-ID, Nucleus-ID und Plattform,
   weil Namen nicht eindeutig sind. Jeder Spieler ist ein eigenes Gerät
@@ -285,6 +286,30 @@ per ID, nie per Name:
   alle sechs Werte gleich den Werten der API.
 - **Unbekannte IDs** liefern HTTP 200 mit `hasResults: false` und lauter
   Nullen, keinen Fehler. Daraus wird `has_results`.
+- **Daten je EA-Konto:** `/bf6/stats/` liefert die Werte zur `nucleus_id`
+  (EA-Konto); `playerid` wird nur zurückgegeben. Geprüft am 02.11.2026 mit
+  zwei öffentlichen Konten: vertauschte `playerid` bei gleicher
+  `nucleus_id` ergab dieselben Werte (25 Matches), die andere
+  `nucleus_id` andere (207 Matches). Dasselbe EA-Konto zweimal
+  eingerichtet, etwa über zwei Plattformen, ergäbe zwei Geräte mit
+  gleichen Werten.
+- **Sammelabfrage `/bf6/multiple/`** (bis 128 Spieler je POST) geprüft am
+  02.11.2026 mit drei öffentlichen Konten und **nicht genutzt**. Die Werte
+  sind dieselben wie einzeln (alle Felder der Auswertung gleich; es fehlen
+  nur `avatar` und `userName`). Abweichend von der OpenAPI, deren Beispiel
+  weder `id` noch `userId` zeigt: Ein ungültiger Spieler steht mit
+  `hasResults: false` in der Liste, die anderen bleiben unberührt; die
+  Reihenfolge folgt nicht der Anfrage (aufsteigend nach `id`); Einträge mit
+  gleicher `user_id` werden zu einem zusammengelegt; bei einem Spieler kommt
+  ein einzelnes Objekt statt `{"data": [...]}`; leere Liste HTTP 404,
+  129 Einträge HTTP 403 („Max 128 players at a time!“); eine unbekannte
+  Plattform wird ignoriert. Dauer für drei Spieler 3,2 s gegenüber
+  0,95 + 0,95 + 1,36 s einzeln (die Integration fragt zwei Spieler
+  gleichzeitig ab), Datenmenge etwa gleich (736 KB), POST wird nicht
+  zwischengespeichert (`cf-cache-status: DYNAMIC`). Nicht genutzt, weil sie
+  nur die Zahl der Statistik-Abfragen senkt (das Profil bleibt je Spieler),
+  ein Fehler dann alle Spieler träfe statt nur einen und die Zuordnung auf
+  undokumentiertem Verhalten beruhte.
 - **Sammeleinträge** fallen weg: Klasse „All“ (`kit`), Karte „All“ (`lvlmp`),
   Modus „Official“ (`gm_official`, alle offiziellen Matches zusammen).
 - **Doppelte Karten** mit gleichen Zahlen werden zusammengelegt, der zweite
@@ -339,7 +364,12 @@ Automatische Tests laufen gegen Home Assistant 2026.2.3
   Weißfarbe einzeln eingebaut – jedes Mal schlug ein Test fehl. Gerendert
   in Chromium mit echten Bildern: dunkel pixelgleich zur gewählten
   Vorschau (2 abweichende Pixel), hell bis auf 3 Pixel gleich 0.6.3
-  (Rundung beim Filtern mit durchsichtiger Farbe). 0.6.3 **live geprüft**
+  (Rundung beim Filtern mit durchsichtiger Farbe). 0.6.4 **live geprüft**
+  (02.11.2026): Lichtrand um alle zehn Waffen- und Fahrzeugbilder sichtbar,
+  Rang-Abzeichen ohne Rand; zweites „Match beendet“ live (12:27:39 UTC:
+  Niederlage, 10 Kills, 16 Tode, 4 Assists, 0 Wiederbelebungen, 26.905 XP,
+  1.468 s, K/D 0,62), jeder Wert gleich dem Zuwachs der Sensoren.
+  0.6.3 **live geprüft**
   (Screenshots vom 02.11.2026, Profil „Hell“): helle Hülle, Tieftöne,
   Bilder gut lesbar, „21,5 %“ ohne Umbruch, keine Fehler im Log. Dabei
   gesehen: Der Rang stieg von 185 auf 186 mit der ersten Abfrage nach dem
