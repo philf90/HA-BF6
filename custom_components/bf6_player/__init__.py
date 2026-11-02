@@ -10,8 +10,10 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
@@ -19,6 +21,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
+from homeassistant.loader import async_get_integration
 
 from .api import GametoolsClient
 from .const import (
@@ -34,6 +37,24 @@ from .services import async_setup_services
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 PLATFORMS = [Platform.EVENT, Platform.IMAGE, Platform.SENSOR]
+
+# Dashboard-Karten (seit 0.6.0), von der Integration selbst ausgeliefert wie
+# bei WoW Charakter; alle Dateien unter frontend/ sind unter CARD_PATH
+# erreichbar. Gemeinsame Teile und der Editor werden von den Karten mit
+# ihrer Version im Pfad nachgeladen und sind deshalb keine eigenen Module.
+CARD_PATH = f"/{DOMAIN}"
+CARD_DIR = Path(__file__).parent / "frontend"
+CARDS = (
+    "bf6-player-card.js",
+    "bf6-arsenal-card.js",
+    "bf6-classes-card.js",
+    "bf6-maps-card.js",
+    "bf6-modes-card.js",
+    "bf6-squad-card.js",
+    "bf6-world-card.js",
+    "bf6-history-card.js",
+)
+CARD_SUPPORT = ("bf6-common.js", "bf6-card-editor.js")
 
 
 @dataclass
@@ -65,9 +86,33 @@ def _snapshot(entry: ConfigEntry) -> tuple[Any, ...]:
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Aktionen einmal je Home Assistant anmelden."""
+    """Aktionen und Karten einmal je Home Assistant anmelden."""
+    await _async_register_cards(hass)
     async_setup_services(hass)
     return True
+
+
+async def _async_register_cards(hass: HomeAssistant) -> None:
+    """Karten ausliefern und im Frontend laden, ohne eigene Dashboard-Ressource.
+
+    Die Version im Pfad sorgt dafuer, dass der Browser nach einem Update die
+    neue Datei laedt.
+    """
+    if getattr(hass, "http", None) is None:
+        return
+    await hass.http.async_register_static_paths(
+        [
+            StaticPathConfig(f"{CARD_PATH}/{card}", str(CARD_DIR / card), True)
+            for card in (*CARDS, *CARD_SUPPORT)
+        ]
+    )
+    if "frontend" not in hass.config.components:
+        return
+    from homeassistant.components.frontend import add_extra_js_url
+
+    integration = await async_get_integration(hass, DOMAIN)
+    for card in CARDS:
+        add_extra_js_url(hass, f"{CARD_PATH}/{card}?v={integration.version}")
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: Bf6ConfigEntry) -> bool:

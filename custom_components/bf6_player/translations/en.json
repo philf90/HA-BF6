@@ -59,7 +59,15 @@
         "name": "Revives"
       },
       "matches": {
-        "name": "Matches"
+        "name": "Matches",
+        "state_attributes": {
+          "maps": {
+            "name": "Maps"
+          },
+          "modes": {
+            "name": "Game modes"
+          }
+        }
       },
       "wins": {
         "name": "Wins"
@@ -112,7 +120,12 @@
         }
       },
       "favorite_class": {
-        "name": "Most played class"
+        "name": "Most played class",
+        "state_attributes": {
+          "classes": {
+            "name": "Classes"
+          }
+        }
       },
       "top_weapon": {
         "name": "Top weapon",

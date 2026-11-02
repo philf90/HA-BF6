@@ -1,0 +1,136 @@
+"""Tests fuer die mitgelieferten Karten (0.6.0): Auslieferung, Laden im
+Frontend und Abgleich der Karten mit der Integration."""
+
+import json
+import re
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+from homeassistant.core import HomeAssistant
+from homeassistant.setup import async_setup_component
+
+from custom_components.bf6_player import CARD_DIR, CARD_PATH, CARD_SUPPORT, CARDS
+from custom_components.bf6_player.const import DOMAIN, PLATFORM_ICONS, PLATFORM_NAMES
+
+MANIFEST = Path(__file__).parents[1] / "custom_components" / DOMAIN / "manifest.json"
+VERSION = json.loads(MANIFEST.read_text())["version"]
+COMMON = (CARD_DIR / "bf6-common.js").read_text(encoding="utf-8")
+IMPORT = (
+    "await import(new URL(`bf6-common.js${new URL(import.meta.url).search}`, "
+    "import.meta.url))"
+)
+
+
+def _element(card: str) -> str:
+    return card.removesuffix(".js")
+
+
+@pytest.mark.parametrize(
+    ("card", "element"),
+    [(card, _element(card)) for card in CARDS]
+    + [("bf6-card-editor.js", "bf6-card-editor")],
+)
+async def test_card_is_served(
+    hass: HomeAssistant, hass_client, card: str, element: str
+) -> None:
+    assert await async_setup_component(hass, "http", {"http": {}})
+    assert await async_setup_component(hass, DOMAIN, {})
+    client = await hass_client()
+    resp = await client.get(f"{CARD_PATH}/{card}")
+    assert resp.status == 200
+    text = await resp.text()
+    if card == "bf6-card-editor.js":
+        assert f'customElements.define("{element}"' in text
+    else:
+        assert f'C.registrieren("{element}", ' in text
+
+
+async def test_common_is_served(hass: HomeAssistant, hass_client) -> None:
+    assert await async_setup_component(hass, "http", {"http": {}})
+    assert await async_setup_component(hass, DOMAIN, {})
+    client = await hass_client()
+    resp = await client.get(f"{CARD_PATH}/bf6-common.js")
+    assert resp.status == 200
+    assert "export class Bf6Card extends HTMLElement" in await resp.text()
+    # Andere Dateien der Integration sind nicht erreichbar
+    assert (await client.get(f"{CARD_PATH}/manifest.json")).status == 404
+    assert (await client.get(f"{CARD_PATH}/../manifest.json")).status == 404
+
+
+async def test_card_loaded_in_frontend(hass: HomeAssistant) -> None:
+    """Mit Frontend: nur die Karten als Modul, mit Version im Pfad."""
+    assert await async_setup_component(hass, "http", {"http": {}})
+    hass.config.components.add("frontend")
+    with patch("homeassistant.components.frontend.add_extra_js_url") as add:
+        assert await async_setup_component(hass, DOMAIN, {})
+    assert [c.args for c in add.call_args_list] == [
+        (hass, f"{CARD_PATH}/{card}?v={VERSION}") for card in CARDS
+    ]
+
+
+async def test_card_without_frontend(hass: HomeAssistant) -> None:
+    assert await async_setup_component(hass, "http", {"http": {}})
+    with patch("homeassistant.components.frontend.add_extra_js_url") as add:
+        assert await async_setup_component(hass, DOMAIN, {})
+    add.assert_not_called()
+
+
+async def test_setup_without_http(hass: HomeAssistant) -> None:
+    """Ohne http (z. B. in Tests anderer Teile) laeuft die Einrichtung weiter."""
+    with patch("homeassistant.components.frontend.add_extra_js_url") as add:
+        assert await async_setup_component(hass, DOMAIN, {})
+    add.assert_not_called()
+
+
+def test_all_frontend_files_listed() -> None:
+    """Jede Datei unter frontend/ ist ausgeliefert, keine fehlt."""
+    files = {p.name for p in CARD_DIR.iterdir()}
+    assert files == set(CARDS) | set(CARD_SUPPORT)
+
+
+@pytest.mark.parametrize("card", [*CARDS, "bf6-card-editor.js"])
+def test_card_loads_common_with_own_version(card: str) -> None:
+    """Gemeinsame Teile mit derselben Version im Pfad wie die Karte selbst,
+    damit nach einem Update nicht alte und neue Dateien gemischt werden."""
+    text = (CARD_DIR / card).read_text(encoding="utf-8")
+    assert IMPORT in text
+
+
+@pytest.mark.parametrize("card", CARDS)
+def test_card_has_both_languages(card: str) -> None:
+    text = (CARD_DIR / card).read_text(encoding="utf-8")
+    block = re.search(r"static TEXT = \{(.*?)\n  \};", text, re.DOTALL)[1]
+    assert re.search(r"^\s+de: \{", block, re.MULTILINE)
+    assert re.search(r"^\s+en: \{", block, re.MULTILINE)
+
+
+def _js_map(name: str) -> dict[str, str]:
+    block = re.search(rf"export const {name} = \{{\n(.*?)\n\}};", COMMON, re.DOTALL)
+    return dict(re.findall(r'^  (\w+): "([^"]+)",$', block[1], re.MULTILINE))
+
+
+def test_platforms_match_integration() -> None:
+    """Symbole und Namen der Plattformen wie in const.py (icons.json)."""
+    assert _js_map("PLATTFORM_SYMBOL") == PLATFORM_ICONS
+    assert _js_map("PLATTFORM_NAME") == PLATFORM_NAMES
+
+
+def test_images_only_from_gametools_cdn() -> None:
+    """Die Karten pruefen Bildadressen selbst noch einmal (wie IMAGE_HOSTS)."""
+    function = re.search(r"export function bild\(url\) \{(.*?)\n\}", COMMON, re.DOTALL)
+    assert 'u.protocol === "https:"' in function[1]
+    assert 'u.hostname === "cdn.gametools.network"' in function[1]
+
+
+def test_text_is_escaped() -> None:
+    """esc() ersetzt alle fuer HTML bedeutsamen Zeichen."""
+    function = re.search(r"export function esc\(value\) \{(.*?)\n\}", COMMON, re.DOTALL)
+    for char, entity in (
+        ("&", "&amp;"),
+        ("<", "&lt;"),
+        (">", "&gt;"),
+        ('"', "&quot;"),
+        ("'", "&#39;"),
+    ):
+        assert f'.replace(/{char}/g, "{entity}")' in function[1], char

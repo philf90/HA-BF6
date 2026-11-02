@@ -7,14 +7,14 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.5.1.
+Version 0.6.0.
 
-> **Stand:** Version 0.5.1: Jeder Spieler ist ein Gerät mit 20 Sensoren,
+> **Stand:** Version 0.6.0: Jeder Spieler ist ein Gerät mit 20 Sensoren,
 > Rang-Abzeichen und den Ereignissen „Match beendet“ und „Rang gestiegen“
 > (siehe [Entitäten je Spieler](#entitäten-je-spieler)); dazu das Gerät
-> „BF6-Spielwelt“, Aktionen, Optionen, Diagnose und Reparaturhinweis.
-> Dashboard-Karten folgen. Den Plan zeigt die Recherche in
-> [`docs/bf6-api-recherche.html`](docs/bf6-api-recherche.html).
+> „BF6-Spielwelt“, Aktionen, Optionen, Diagnose, Reparaturhinweis und acht
+> [Dashboard-Karten](#dashboard-karten) im Nachtblau-Stil. Den Plan zeigt
+> die Recherche in [`docs/bf6-api-recherche.html`](docs/bf6-api-recherche.html).
 
 > **KI-Hinweis:** Dieses Projekt entsteht mit Claude Code. Code, Tests und
 > Dokumentation schreibt die KI; Details im Abschnitt [KI-Hinweis](#ki-hinweis).
@@ -90,7 +90,9 @@ ist kein Produkt von EA, DICE oder Community Network. Fragen zur API:
   daraus `mdi:steam`, `mdi:sony-playstation`, `mdi:microsoft-xbox` und
   `mdi:microsoft-windows`. Für EA app und Epic Games gibt es dort kein
   Symbol; sie bekommen den Controller `mdi:gamepad-variant`.
-- **Gerät „BF6-Spielwelt“** (geplant): Saison, Battle Pass und Portal-Server.
+- **Gerät „BF6-Spielwelt“** (seit 0.5.0): Saison, Battle Pass und Portal-Server.
+- **Dashboard-Karten** (seit 0.6.0): von der Integration ausgeliefert, ohne
+  eigene Dashboard-Ressource (siehe [Dashboard-Karten](#dashboard-karten)).
 
 ## Entitäten je Spieler
 
@@ -101,13 +103,13 @@ der Installation.
 | Wert | Typ | Takt | Quelle (Endpunkt, Feld) |
 |---|---|---|---|
 | Kills, Tode, Assists, Wiederbelebungen | Sensoren, Zähler | 15 min | `/bf6/stats/`, `kills`, `deaths`, `assists`, `revives` |
-| Matches, Siege, Niederlagen | Sensoren, Zähler | 15 min | `matchesPlayed`, `wins`, `loses` |
+| Matches, Siege, Niederlagen (an „Matches“ seit 0.6.0 die Attribute `maps` und `modes`) | Sensoren, Zähler | 15 min | `matchesPlayed`, `wins`, `loses`; Listen aus `maps[]` und `gameModes[]` |
 | XP | Sensor, Zähler | 15 min | `XP[0].total` |
 | Spielzeit | Sensor, Dauer in Stunden | 15 min | `secondsPlayed` |
 | K/D, Kills pro Minute | Sensoren | 15 min | selbst gerechnet: Kills ÷ Tode, Kills ÷ Spielminuten |
 | Siegquote, Treffergenauigkeit, Headshot-Quote, Kills gegen Menschen | Sensoren in % | 15 min | selbst gerechnet: Siege ÷ Matches, Treffer ÷ Schüsse, Headshots ÷ Kills, `dividedKills.human` ÷ Kills |
 | Rang (Rangname, Dog Tags, Abzeichen, Rang-Bild, Ranked-Rang als Attribute) | Sensor | 60 min | `/bf6/profile/`, `playerCard.rank`, `rankName`, `totalDogTags`, `badgeSummary.totalBadges`, `playerCard.rankImage.large`, `competitiveRanks` |
-| Meistgespielte Klasse | Sensor (Text) | 15 min | `classes[]` mit der längsten Spielzeit |
+| Meistgespielte Klasse (seit 0.6.0 alle Klassen als Attribut `classes`) | Sensor (Text) | 15 min | `classes[]` mit der längsten Spielzeit |
 | Top-Waffe, Top-Fahrzeug (Top 5 als Attribut `top`) | Sensoren (Text) | 15 min | `weapons[]`, `vehicles[]` nach Kills |
 | Plattform | Sensor (Diagnose), Symbol je Plattform | gespeichert | aus dem Dialog „Spieler hinzufügen“ |
 | Rang-Abzeichen | Bild (seit 0.5.0) | 60 min | `/bf6/profile/`, `playerCard.rankImage.large` |
@@ -145,7 +147,14 @@ gestiegen“ meldet `previous_rank`, `rank` und `rank_name`.
 
 Diese Attribute stehen am Sensor, gehen aber nicht in den Verlauf (Listen und
 Adressen, 16-KB-Grenze des Recorders): `top` (Top-Waffe, Top-Fahrzeug),
-`ranked` und `rank_image` (Rang).
+`ranked` und `rank_image` (Rang), `maps` und `modes` (Matches) sowie
+`classes` (Meistgespielte Klasse).
+
+Die Listen `maps`, `modes` und `classes` sind für die Karten da (seit 0.6.0).
+Einträge von `maps`: `name`, `aliases`, `matches`, `wins`, `losses`,
+`win_rate`, `seconds`; von `modes`: `name`, `aliases`, `matches`, `wins`,
+`losses`, `win_rate`, `kills`, `kd`; von `classes`: `name`, `kills`,
+`deaths`, `kd`, `kpm`, `seconds`.
 
 ## Gerät „BF6-Spielwelt“
 
@@ -183,6 +192,54 @@ liefern.
   geschwärzt. Namen von Waffen, Fahrzeugen, Klassen, Karten und Modi
   bleiben lesbar (seit 0.5.1; in 0.5.0 ebenfalls geschwärzt).
 
+## Dashboard-Karten
+
+Seit 0.6.0. Die Integration liefert die Karten selbst aus und meldet sie im
+Frontend an, wie WoW Charakter: Eine Dashboard-Ressource ist nicht nötig.
+Nach einem Update lädt der Browser die neue Version, weil sie im Pfad steht
+(`/bf6_player/<karte>.js?v=<Version>`); notfalls die Seite neu laden. Im
+Kartenwähler stehen sie unter „Benutzerdefiniert“ als „BF6 …“.
+
+| Karte | Typ | Inhalt | Optionen |
+|---|---|---|---|
+| BF6 Spieler | `custom:bf6-player-card` | Rang-Abzeichen, Name, Plattform mit Symbol, Rang; Kills, K/D, KPM, Matches, Siegquote, Spielzeit; Balken Siege/Niederlagen/sonstige; Treffergenauigkeit, Headshot-Quote, Kills gegen Menschen; Klasse, Waffe, Fahrzeug | `entity` |
+| BF6 Arsenal | `custom:bf6-arsenal-card` | Top-Waffen mit Bild, Kills, Genauigkeit, Headshot-Quote, KPM; Top-Fahrzeuge mit Kills und Zeit | `entity`, `limit` (1–5), `show` (`weapons`, `vehicles`) |
+| BF6 Klassen | `custom:bf6-classes-card` | Anteil der Klassen an der Spielzeit, je Klasse Stunden, K/D, KPM, Kills | `entity` |
+| BF6 Karten | `custom:bf6-maps-card` | Siegquote je Karte mit Siegen, Niederlagen, Matches und zweitem Namen | `entity`, `min_matches` (Vorgabe 1), `limit` (Vorgabe 10), `sort` (`matches` oder `win_rate`) |
+| BF6 Modi | `custom:bf6-modes-card` | Matches je Modus, Siegquote, K/D, Kills | `entity`, `limit` (Vorgabe 8) |
+| BF6 Squad | `custom:bf6-squad-card` | mehrere Spieler: K/D, KPM, Siegquote, darunter Kills, Matches, Spielzeit; der beste Wert je Spalte in Rosé | `entities` (leer: alle Spieler), `title` |
+| BF6 Spielwelt | `custom:bf6-world-card` | Saison und Battle Pass, Restzeit, vergangener Anteil, Beginn und Ende; Portal-Server und -Spieler | – |
+| BF6 Verlauf | `custom:bf6-history-card` | Langzeitstatistik eines Werts: Quoten als Linie des Mittelwerts, Zähler als Balken des Zuwachses je Zeitraum | `entity`, `metric` (`kd`, `kpm`, `win_rate`, `accuracy`, `headshot_rate`, `rank`, `kills`, `matches`, `wins`, `xp`, `time_played`), `period` (`day`, `week`, `month`), `days` (7–365, Vorgabe 30) |
+
+```yaml
+type: custom:bf6-maps-card
+entity: sensor.testspieler_kills   # beliebige Entität des Spielers; leer: erster Spieler
+min_matches: 3
+sort: win_rate
+```
+
+- **Editor:** Statt aller Sensoren bietet er nur die Spieler an („Name ·
+  Plattform“) und speichert deren Kills-Sensor; die Karten finden die
+  übrigen Entitäten über das Gerät. Ohne Angabe zeigt eine Karte den
+  ersten Spieler nach Namen.
+- **Stil:** Nachtblau aus `philf90/home-assistant` (Hülle mit Verlauf,
+  Radius 22 px, Unterkacheln, Akzent Rosé). Jede Farbe ist eine
+  Theme-Variable (`--nachtblau-…`) mit dem dunklen Palettenwert als
+  Rückfall; ohne das Theme sind die Karten auch im hellen Modus dunkel.
+  Breite geprüft bei 344 und 386 px.
+- **Siegquote** in Farbe: ab 55 % grün, ab 45 % amber, darunter rot; die
+  Zahl steht immer daneben.
+- **Summen:** Die Karten nehmen die Gesamtwerte der Sensoren und rechnen sie
+  nicht aus den Listen nach; die API zählt dort unterschiedlich (live am
+  02.11.2026: 747 Matches oben, 787 in der Moduszeile „All“, 714 in der
+  Kartenzeile „All“). „sonstige“ im Balken der Spielerkarte sind Matches
+  minus Siege minus Niederlagen (am selben Tag: 1).
+- **Verlauf:** liest `recorder/statistics_during_period`; Home Assistant
+  bildet die Langzeitstatistik stündlich, die ersten Werte erscheinen also
+  einige Stunden nach der Installation. Werte stehen beim Überfahren mit der
+  Maus an den Balken bzw. Punkten, Summe bzw. kleinster und größter Wert als
+  Text darunter.
+
 ## Abfragen und Auswertung
 
 Seit 0.2.0 (`api.py`, `parsers.py`), noch ohne Entitäten. Abgefragt wird immer
@@ -208,6 +265,10 @@ per ID, nie per Name:
   Modus „Official“ (`gm_official`, alle offiziellen Matches zusammen).
 - **Doppelte Karten** mit gleichen Zahlen werden zusammengelegt, der zweite
   Name steht unter `aliases` (am 01.11.2026 „Fort Lyndon“ und „REDSEC“).
+- **Doppelte Modi** ebenso (seit 0.6.0; live am 02.11.2026 „Obliteration“
+  als `gm_oblit` und `gm_oblitall`, beide 1 Match, 20 Kills). Zusammengelegt
+  wird nur bei gleichen Matches, Siegen, Niederlagen, Kills, Toden und
+  Spielzeit; ungespielte Modi bleiben getrennt.
 - **Fehler:** HTTP 404 → nicht gefunden, HTTP 429 → Abfragelimit, andere
   Statuscodes, Zeitüberschreitung (30 s), Verbindungsfehler und Antworten ohne
   JSON-Objekt → allgemeiner Fehler.
@@ -227,8 +288,13 @@ Shell, keine Datenbank-Abfrage, kein Template); geprüft am 02.11.2026:
 | Name aus der API-Antwort | Steuer- und Richtungszeichen entfernt, höchstens 64 Zeichen, bevor er Titel des Spielers wird |
 | Bildadressen aus der API | nur `https://cdn.gametools.network/…` ohne Benutzer, Passwort und fremden Port; alles andere wird verworfen, damit Home Assistant keine Adressen im eigenen Netz abruft |
 
-Für die späteren Karten gilt wie bei WoW Charakter: Jeder Text aus Entitäten
-wird vor dem Einsetzen in HTML maskiert. Namen erscheinen nicht im Log.
+In den Karten (seit 0.6.0) geht jeder Text aus Entitäten und Geräten
+(Spielernamen, Waffen, Karten, Modi …) durch `esc()`, das `&`, `<`, `>`, `"`
+und `'` ersetzt, bevor er in HTML landet. Bilder zeigen die Karten nur von
+`https://cdn.gametools.network`, auch wenn ein Attribut etwas anderes
+enthielte. Geprüft in Chromium mit dem Namen `<img src=x
+onerror=alert(1)>` und einer Waffe `<script>alert(1)</script>`: beide als
+Text sichtbar, kein Skript, kein fremdes Bild. Namen erscheinen nicht im Log.
 
 ## Grenzen
 
@@ -242,7 +308,29 @@ wird vor dem Einsetzen in HTML maskiert. Namen erscheinen nicht im Log.
 Automatische Tests laufen gegen Home Assistant 2026.2.3
 (`pytest-homeassistant-custom-component` 0.13.316).
 
-- **0.5.x:** 152 automatische Tests. 0.5.1: Die Diagnose schwärzte in 0.5.0
+- **0.6.x:** 189 automatische Tests. 0.6.0: Karten ausgeliefert und mit
+  Version im Pfad angemeldet (ohne Frontend und ohne http nicht), alle
+  Dateien unter `frontend/` gelistet, jede Karte lädt die gemeinsamen Teile
+  mit ihrer eigenen Version, beide Sprachen, Plattform-Symbole und -Namen
+  gleich `const.py`, Prüfung der Bildadressen und das Maskieren in `esc()`;
+  Listen `maps`, `modes`, `classes` als Attribute (auch leer) und nicht in
+  der Datenbank; doppelte Modi zusammengelegt. Gegenprobe: 9
+  Schutzmaßnahmen einzeln entfernt (Zusammenlegen der Modi, Listen nicht
+  in der Datenbank, Listen am Sensor „Matches“, Karte angemeldet, Version im
+  Pfad, Symbol für EA app, Maskieren von `"`, Bild nur von gametools,
+  Version beim Laden der gemeinsamen Teile) – jedes Mal schlug ein Test
+  fehl. Darstellung lokal in Chromium mit erfundenen Daten gerendert (344
+  und 386 px, Deutsch und Englisch, langer Name, Spieler ohne Werte,
+  unbekannte Entität, Name und Waffe mit HTML): keine Fehler in der
+  Konsole, kein Überlauf. Nicht live in Home Assistant geprüft; der Editor
+  (ha-form) nur im Aufbau wie bei WoW Charakter, nicht in der Oberfläche
+  gesehen.
+- **0.5.x:** 152 automatische Tests. 0.5.1 **live geprüft** (02.11.2026,
+  Home Assistant 2026.10.4): Diagnose mit geschwärztem Titel, Namen und
+  IDs, Waffen, Fahrzeuge, Klassen, Karten und Modi lesbar, „Fort Lyndon“
+  mit Alias „REDSEC“; Werte unverändert, keine Fehler im Log. Dabei
+  gefunden: „Obliteration“ zweimal in der Liste der Modi (in 0.6.0
+  behoben). 0.5.1: Die Diagnose schwärzte in 0.5.0
   jedes Feld `name`, auch Waffen, Klassen, Karten und Modi; jetzt nur Titel
   und Daten des Spielers. Der Diagnose-Test prüft nun auch, dass diese Namen
   lesbar bleiben (Gegenprobe mit dem alten Verhalten: Test schlägt fehl).

@@ -229,7 +229,47 @@ async def test_unload(hass: HomeAssistant, aioclient_mock: AiohttpClientMocker):
 
 
 def test_lists_not_recorded() -> None:
-    assert {"top", "ranked", "rank_image"} <= Bf6Sensor._unrecorded_attributes
+    assert {
+        "top",
+        "ranked",
+        "rank_image",
+        "classes",
+        "maps",
+        "modes",
+    } <= Bf6Sensor._unrecorded_attributes
+
+
+async def test_lists_for_cards(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Listen fuer die Karten (seit 0.6.0) an "Matches" und "Lieblingsklasse"."""
+    _mock(aioclient_mock)
+    await _setup(hass)
+    matches = _state(hass, "matches").attributes
+    assert [m["name"] for m in matches["maps"]][:2] == ["Karte Eins", "Karte Zwei"]
+    assert [m["name"] for m in matches["modes"]] == ["Conquest", "Rush"]
+    classes = _state(hass, "favorite_class").attributes["classes"]
+    assert [c["name"] for c in classes] == ["Support", "Assault"]
+    for lang in ("en", "de"):
+        text = json.loads((INTEGRATION / f"translations/{lang}.json").read_text())
+        sensors = text["entity"]["sensor"]
+        assert set(sensors["matches"]["state_attributes"]) == {"maps", "modes"}
+        assert set(sensors["favorite_class"]["state_attributes"]) == {"classes"}
+
+
+async def test_lists_empty_without_data(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
+) -> None:
+    """Ohne Karten, Modi und Klassen leere Listen statt fehlender Attribute."""
+    stats = {
+        k: v for k, v in STATS.items() if k not in ("maps", "gameModes", "classes")
+    }
+    _mock(aioclient_mock, stats=stats)
+    await _setup(hass)
+    matches = _state(hass, "matches").attributes
+    assert matches["maps"] == []
+    assert matches["modes"] == []
+    assert _state(hass, "favorite_class").attributes["classes"] == []
 
 
 def test_icons_and_translations_match() -> None:
