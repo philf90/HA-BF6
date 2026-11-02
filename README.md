@@ -7,9 +7,9 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.6.3.
+Version 0.6.4.
 
-> **Stand:** Version 0.6.3: Jeder Spieler ist ein Gerät mit 20 Sensoren,
+> **Stand:** Version 0.6.4: Jeder Spieler ist ein Gerät mit 20 Sensoren,
 > Rang-Abzeichen und den Ereignissen „Match beendet“ und „Rang gestiegen“
 > (siehe [Entitäten je Spieler](#entitäten-je-spieler)); dazu das Gerät
 > „BF6-Spielwelt“, Aktionen, Optionen, Diagnose, Reparaturhinweis und acht
@@ -239,6 +239,16 @@ sort: win_rate
   Rangbilder vom CDN sind überwiegend dunkel und stehen auf heller Hülle
   besser als auf dunkler (gemessen an 7 Bildern vom 02.11.2026: unter
   1,5:1 zum Grund hell 0–4 %, dunkel 25–83 % der deckenden Bildpunkte).
+- **Lichtrand** (seit 0.6.4): Im dunklen Modus bekommen Waffen- und
+  Fahrzeugbilder einen feinen hellen Rand (`drop-shadow` in der Farbe des
+  Primärtexts mit 90 % und 50 % Deckkraft), damit sich die Umrisse von der
+  Hülle abheben; das Bild selbst bleibt unverändert. Gegen den Rand liegen
+  0–5 % der Bildpunkte unter 1,5:1 (ohne Rand gegen die Hülle 22–86 %).
+  Im hellen Modus schaltet `nachtblau-dunkel-anteil` den Rand durchsichtig.
+  Das Rang-Abzeichen im Kopf bleibt ohne Rand. DESIGN.md kennt diese Form
+  nicht; sie ist eine Ausnahme dieser Karten, gewählt aus vier gerenderten
+  Varianten (ohne, Bildkachel in Label-Grau, Bildkachel in Wolkengrau,
+  Lichtrand).
 - **Siegquote** in Farbe: ab 55 % grün, ab 45 % amber, darunter rot; die
   Zahl steht immer daneben.
 - **Summen:** Die Karten nehmen die Gesamtwerte der Sensoren und rechnen sie
@@ -322,7 +332,19 @@ Text sichtbar, kein Skript, kein fremdes Bild. Namen erscheinen nicht im Log.
 Automatische Tests laufen gegen Home Assistant 2026.2.3
 (`pytest-homeassistant-custom-component` 0.13.316).
 
-- **0.6.x:** 200 automatische Tests. 0.6.3: heller Modus geprüft und
+- **0.6.x:** 201 automatische Tests. 0.6.4: Lichtrand um Waffen- und
+  Fahrzeugbilder im dunklen Modus; ein Test verlangt den Schalter für den
+  hellen Modus, den Rand an den Bildern und keinen am Rang-Abzeichen.
+  Gegenprobe: Rand auch hell, Rand nicht an den Bildern und feste
+  Weißfarbe einzeln eingebaut – jedes Mal schlug ein Test fehl. Gerendert
+  in Chromium mit echten Bildern: dunkel pixelgleich zur gewählten
+  Vorschau (2 abweichende Pixel), hell bis auf 3 Pixel gleich 0.6.3
+  (Rundung beim Filtern mit durchsichtiger Farbe). 0.6.3 **live geprüft**
+  (Screenshots vom 02.11.2026, Profil „Hell“): helle Hülle, Tieftöne,
+  Bilder gut lesbar, „21,5 %“ ohne Umbruch, keine Fehler im Log. Dabei
+  gesehen: Der Rang stieg von 185 auf 186 mit der ersten Abfrage nach dem
+  Neustart um 13:12, deshalb ohne Ereignis „Rang gestiegen“ (so gebaut,
+  siehe Ereignisse; eine Änderung ist nicht gewünscht). 0.6.3: heller Modus geprüft und
   abgesichert. Ein Test je Kartendatei verlangt, dass jede Farbe eine
   Variable des Themes mit dem dunklen Palettenwert als Rückfall ist (alle
   19 genutzten Variablen gegen `design/palette.yaml`, Commit cfb46ad) und
