@@ -37,12 +37,12 @@ class Bf6ClassesCard extends C.Bf6Card {
     const zeilen = klassen
       .map((k, i) => {
         const anteil = ((k.seconds || 0) / summe) * 100;
-        const info = [`K/D ${fmt(k.kd, lang, 2)}`, `KPM ${fmt(k.kpm, lang, 2)}`, `${fmt(k.kills, lang)} ${this._t("kills")}`];
+        const info = [`K/D\u00a0${fmt(k.kd, lang, 2)}`, `KPM\u00a0${fmt(k.kpm, lang, 2)}`, `${fmt(k.kills, lang)}\u00a0${this._t("kills")}`];
         return `
           <div class="zeile">
             <span class="zn"><span class="punkt" style="background:${farbe(i)}"></span>${esc(k.name || "–")}</span>
-            <span class="zw">${esc(fmt((k.seconds || 0) / 3600, lang, 1))} ${esc(this._t("hours"))}</span>
-            <span class="zi">${esc(info.join(" · "))}</span><span class="zr">${esc(fmt(anteil, lang))} %</span>
+            <span class="zw">${esc(fmt((k.seconds || 0) / 3600, lang, 1))}\u00a0${esc(this._t("hours"))}</span>
+            <span class="zi">${esc(info.join(" · "))}</span><span class="zr">${esc(fmt(anteil, lang))}\u00a0%</span>
             <div class="spur"><i style="width:${anteil.toFixed(1)}%;background:${farbe(i)}"></i></div>
           </div>`;
       })

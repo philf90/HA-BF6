@@ -84,7 +84,7 @@ class Bf6PlayerCard extends C.Bf6Card {
       this._kachel("kpm", fmt(zahl(st("kpm")), lang, 2)),
       this._kachel("matches", fmt(zahl(st("matches")), lang)),
       this._kachel("win_rate", prozent(quote, lang), quotenFarbe(quote)),
-      this._kachel("time", `${fmt(stunden(st("time_played")), lang)} ${this._t("hours")}`),
+      this._kachel("time", `${fmt(stunden(st("time_played")), lang)}\u00a0${this._t("hours")}`),
     ].join("");
     const genau = [
       this._kachel("accuracy", prozent(zahl(st("accuracy")), lang)),
@@ -111,7 +111,7 @@ class Bf6PlayerCard extends C.Bf6Card {
     ].filter(([, n]) => n > 0);
     const balken = teile.map(([, n, farbe]) => `<span style="flex:${n};background:${farbe}"></span>`).join("");
     const legende = teile
-      .map(([key, n, farbe]) => `<span><span class="punkt" style="background:${farbe}"></span>${esc(fmt(n, lang))} ${esc(this._t(key))}</span>`)
+      .map(([key, n, farbe]) => `<span><span class="punkt" style="background:${farbe}"></span>${esc(fmt(n, lang))}\u00a0${esc(this._t(key))}</span>`)
       .join("");
     return `<div class="stapel">${balken}</div><div class="leg">${legende}</div>`;
   }

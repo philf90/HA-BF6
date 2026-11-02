@@ -134,3 +134,57 @@ def test_text_is_escaped() -> None:
         ("'", "&#39;"),
     ):
         assert f'.replace(/{char}/g, "{entity}")' in function[1], char
+
+
+# Dunkle Werte der Theme-Variablen, die die Karten nutzen, aus
+# philf90/home-assistant design/palette.yaml (Abschnitt theme.variablen,
+# Commit cfb46ad). Das Theme "nachtblau" setzt sie je Modus; ohne Theme gilt
+# der Rueckfall in var() (DESIGN.md, "Karten umstellen").
+NACHTBLAU_DUNKEL = {
+    "nachtblau-huelle-oben": "#1b2231",
+    "nachtblau-huelle-unten": "#171d29",
+    "nachtblau-huelle-rand": "rgba(255, 255, 255, 0.05)",
+    "nachtblau-schatten": "rgba(0, 0, 0, 0.7)",
+    "nachtblau-unterkachel": "rgba(255, 255, 255, 0.028)",
+    "nachtblau-unterkachel-rand": "rgba(255, 255, 255, 0.06)",
+    "nachtblau-neutral-kachel": "rgba(255, 255, 255, 0.05)",
+    "nachtblau-flaeche-vertieft": "#10151d",
+    "nachtblau-text": "#f2f5f8",
+    "nachtblau-titel": "#e7ecf3",
+    "nachtblau-label": "#b4c0cf",
+    "nachtblau-text-sekundaer": "#8794a5",
+    "nachtblau-gruen": "#a6d49e",
+    "nachtblau-amber": "#e6b566",
+    "nachtblau-rot": "#f0736a",
+    "nachtblau-blau": "#7fb3d5",
+    "nachtblau-tuerkis": "#7fd0d5",
+    "nachtblau-violett": "#b399d4",
+    "nachtblau-rose": "#e6a0c4",
+}
+_VAR = re.compile(
+    r"var\(--(nachtblau-[a-z-]+), ((?:rgba?\([^)]*\))|#[0-9a-fA-F]{3,8})\)"
+)
+_FARBE = re.compile(r"#[0-9a-fA-F]{3,8}\b|rgba?\(")
+
+
+@pytest.mark.parametrize("datei", sorted(p.name for p in CARD_DIR.glob("*.js")))
+def test_colors_follow_theme(datei: str) -> None:
+    """Heller Modus (0.6.3): Jede Farbe ist eine Variable des Themes mit dem
+    dunklen Palettenwert als Rueckfall, feste Farben gibt es nicht. So folgen
+    die Karten mit dem Theme "nachtblau" dem hellen und dem dunklen Modus."""
+    text = (CARD_DIR / datei).read_text(encoding="utf-8")
+    for name, rueckfall in _VAR.findall(text):
+        assert NACHTBLAU_DUNKEL.get(name) == rueckfall, name
+    rest = _VAR.sub("", text)
+    assert not _FARBE.findall(rest), datei
+
+
+def test_number_and_unit_stay_together() -> None:
+    """Zahl und Prozentzeichen mit geschuetztem Leerzeichen (0.6.3): bei
+    344 px brach "21,4 %" in der Arsenal-Karte zwischen Zahl und Zeichen um."""
+    function = re.search(r"export function prozent\(.*?\n\}", COMMON, re.DOTALL)
+    assert "\\u00a0%" in function[0]
+    for datei in CARD_DIR.glob("*.js"):
+        text = datei.read_text(encoding="utf-8")
+        assert ")} %" not in text, datei.name
+        assert not re.search(r"\)\} \$\{(esc\()?this\._t\(", text), datei.name
