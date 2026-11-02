@@ -200,3 +200,19 @@ def test_light_outline_only_dark_and_only_thumbnails() -> None:
     assert "var(--nachtblau-dunkel-anteil, 100%)" in nur_dunkel
     assert re.search(r"\.thumb \{[^}]*filter: \$\{LICHTRAND\}", COMMON)
     assert not re.search(r"\.symbol img \{[^}]*LICHTRAND", COMMON)
+
+
+def test_inline_icons_use_ha_alignment() -> None:
+    """Symbole im Text (Plattform im Kopf, Squad-Zeilen) behalten die
+    Ausrichtung von ha-svg-icon (inline-flex, vertical-align: middle). Ein
+    eigenes vertical-align am ha-icon setzte sie bis 0.6.5 um 2 px zu tief
+    (gemessen: Glyphenmitte 1,4 statt 3,4 px ueber der Grundlinie, Mitte der
+    x-Hoehe 3,5 px)."""
+    regeln = 0
+    for datei in CARD_DIR.glob("*.js"):
+        for zeile in datei.read_text(encoding="utf-8").splitlines():
+            if re.search(r"ha-icon \{", zeile):
+                regeln += 1
+                assert "vertical-align" not in zeile, (datei.name, zeile.strip())
+    assert regeln >= 3
+    assert re.search(r"\.label ha-icon \{ --mdc-icon-size: 14px; color", COMMON)

@@ -1,13 +1,38 @@
 // Platzhalter fuer ha-card und ha-icon, die Home Assistant sonst liefert.
-// ha-icon zeichnet den Pfad aus Material Design Icons 7.4.47 (wie Home
-// Assistant); die Groesse kommt wie dort aus --mdc-icon-size und steht direkt
-// am Element, weil das Seiten-CSS nicht in den Shadow DOM der Karten wirkt.
+// ha-icon und ha-svg-icon sind wie in home-assistant/frontend aufgebaut, damit
+// Groesse und Ausrichtung der Symbole den echten Karten entsprechen:
+//   ha-icon:     Shadow DOM, :host { fill: currentcolor } (sonst Inline),
+//                rendert <ha-svg-icon>
+//   ha-svg-icon: :host { display: var(--ha-icon-display, inline-flex);
+//                align-items/justify-content: center; vertical-align: middle;
+//                width/height: var(--mdc-icon-size, 24px) }
+// Die Pfade stammen aus Material Design Icons 7.4.47 (wie Home Assistant).
 window.MDI = {};
 
 customElements.define("ha-card", class extends HTMLElement {});
+
+customElements.define("ha-svg-icon", class extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+  }
+  set path(pfad) {
+    this.shadowRoot.innerHTML = `<style>
+        :host { display: var(--ha-icon-display, inline-flex); align-items: center; justify-content: center;
+          position: relative; vertical-align: middle; fill: var(--icon-primary-color, currentcolor);
+          width: var(--mdc-icon-size, 24px); height: var(--mdc-icon-size, 24px); }
+        svg { width: 100%; height: 100%; pointer-events: none; display: block; }
+      </style><svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" focusable="false" aria-hidden="true"><g><path d="${pfad}"></path></g></svg>`;
+  }
+});
+
 customElements.define("ha-icon", class extends HTMLElement {
   static get observedAttributes() {
     return ["icon"];
+  }
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
   }
   connectedCallback() {
     this.zeichnen();
@@ -18,10 +43,10 @@ customElements.define("ha-icon", class extends HTMLElement {
   zeichnen() {
     const name = (this.getAttribute("icon") || "").replace("mdi:", "");
     const key = "mdi" + name.split("-").map((t) => t[0].toUpperCase() + t.slice(1)).join("");
-    this.style.display = "inline-block";
-    this.style.width = this.style.height = "var(--mdc-icon-size, 24px)";
-    this.style.verticalAlign = "middle";
-    this.innerHTML = `<svg viewBox="0 0 24 24" style="display:block;width:100%;height:100%;fill:currentColor"><path d="${window.MDI[key] || ""}"/></svg>`;
+    this.shadowRoot.innerHTML = "<style>:host { fill: currentcolor; }</style>";
+    const svg = document.createElement("ha-svg-icon");
+    svg.path = window.MDI[key] || "";
+    this.shadowRoot.appendChild(svg);
   }
 });
 
