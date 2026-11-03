@@ -55,6 +55,13 @@ async def test_diagnostics_without_names_and_ids(hass: HomeAssistant, aioclient_
     assert player["update_interval_s"] == 900
     assert player["profile_interval_s"] == 3600
     assert diag["world"]["data"]["portal"]["servers"] == 1000
+    # Seit 0.7.1: Eintraege mit Kills ohne Bild und warum (Frag Grenade live)
+    assert stats["missing_images"][0] == {
+        "list": "weapons",
+        "name": "Karabiner B",
+        "kills": 500,
+        "problem": "empty",
+    }
 
 
 async def test_options_change_intervals(hass: HomeAssistant, aioclient_mock):

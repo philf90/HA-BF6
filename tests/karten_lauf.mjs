@@ -54,7 +54,11 @@ function entities() {
 }
 
 // text: Wert fuer jedes Textfeld; zahl: Wert fuer die Spielzeit je Klasse
-function hassMit(text, klassenSekunden) {
+// Bild-Proxy wie in Home Assistant 2026.10 (components/image, ENTITY_IMAGE_URL)
+export const PROXY_BILD = "/api/image_proxy/image.spieler_rang_abzeichen?token=0a1b2c3d";
+const CDN_ABZEICHEN = "https://cdn.gametools.network/ranks/bf6/r_lg.png";
+
+function hassMit(text, klassenSekunden, abzeichen = { state: "2026-11-03T09:10:43+00:00", bild: PROXY_BILD }) {
   const st = (key, state, attributes = {}) => [`sensor.spieler_${key}`, { state: String(state), attributes }];
   const liste = (felder) => [{ name: text, type: text, kills: 120, accuracy: 25.5, headshot_rate: 12.5, kpm: 1.2, seconds: 3600, image: null, ...felder }];
   const states = Object.fromEntries([
@@ -67,7 +71,9 @@ function hassMit(text, klassenSekunden) {
     st("time_played", 15, { unit_of_measurement: "h" }),
     st("kd", 2.5), st("kpm", 1.11), st("win_rate", 60), st("accuracy", 25), st("headshot_rate", 15),
     st("human_kill_rate", 80),
-    st("rank", 42, { rank_name: text, rank_image: null, ranked: [] }),
+    // rank_image vom CDN: Die Karten duerfen es seit 0.7.1 nicht mehr nehmen (B26)
+    st("rank", 42, { rank_name: text, rank_image: CDN_ABZEICHEN, ranked: [] }),
+    st("rank_badge", abzeichen.state, { entity_picture: text === BOESE ? BOESE : abzeichen.bild }),
     st("favorite_class", text, {
       classes: [
         { name: text, kills: 500, deaths: 200, kd: 2.5, kpm: 1.2, seconds: klassenSekunden },
@@ -123,6 +129,14 @@ for (const element of Object.keys(KARTEN)) {
 const ergebnis = { karten: {}, index: {} };
 const normal = hassMit("Testspieler", 7200);
 const boese = hassMit(BOESE, BOESE);
+// Kopf der Spielerkarte: Bild-Entitaet ohne Bild, fremde Adresse
+const kopf = (abzeichen) =>
+  zeichnen("bf6-player-card", {}, hassMit("Testspieler", 7200, abzeichen)).shadowRoot.innerHTML.match(/<div class="symbol">(.*?)<\/div>/s)?.[1] ?? null;
+ergebnis.kopf = {
+  ohne_bild: kopf({ state: "unknown", bild: PROXY_BILD }),
+  fremd: kopf({ state: "2026-11-03T09:10:43+00:00", bild: "https://example.com/api/image_proxy/image.x?token=ab" }),
+  pfad: kopf({ state: "2026-11-03T09:10:43+00:00", bild: "/api/image_proxy/../../config?token=ab" }),
+};
 for (const [element, config] of Object.entries(KARTEN)) {
   ergebnis.karten[element] = {
     normal: zeichnen(element, config, normal).shadowRoot.innerHTML,

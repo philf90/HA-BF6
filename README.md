@@ -11,9 +11,9 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.7.0.
+Version 0.7.1.
 
-> **Stand:** Version 0.7.0: Jeder Spieler ist ein Gerät mit 24 Sensoren,
+> **Stand:** Version 0.7.1: Jeder Spieler ist ein Gerät mit 24 Sensoren,
 > Rang-Abzeichen und den Ereignissen „Match beendet“ und „Rang gestiegen“
 > (siehe [Entitäten je Spieler](#entitäten-je-spieler)); dazu das Gerät
 > „BF6-Spielwelt“, Aktionen, Optionen, Diagnose, Reparaturhinweis, acht
@@ -256,7 +256,11 @@ liefern.
 - **Diagnose** (Gerät bzw. Eintrag → Diagnose herunterladen): Zustand und
   Daten der Abfragen; Name und Titel des Spielers, Persona- und Nucleus-ID
   geschwärzt. Namen von Waffen, Fahrzeugen, Klassen, Karten und Modi
-  bleiben lesbar (seit 0.5.1; in 0.5.0 ebenfalls geschwärzt).
+  bleiben lesbar (seit 0.5.1; in 0.5.0 ebenfalls geschwärzt). Seit 0.7.1
+  steht unter `stats.missing_images`, welche Waffen, Fahrzeuge und Gadgets
+  mit Kills kein Bild haben und warum: `empty` (die API liefert keine
+  Adresse; beim Beispielkonto der API bei 2 von 4 Gadgets und 2 von 6
+  Fahrzeugen), `host:<Server>` (fremder Server, verworfen) oder `invalid`.
 
 ## Dashboard-Karten
 
@@ -456,7 +460,12 @@ In den Karten (seit 0.6.0) geht jeder Text aus Entitäten und Geräten
 (Spielernamen, Waffen, Karten, Modi …) durch `esc()`, das `&`, `<`, `>`, `"`
 und `'` ersetzt, bevor er in HTML landet. Bilder zeigen die Karten nur von
 `https://cdn.gametools.network`, auch wenn ein Attribut etwas anderes
-enthielte. Geprüft in Chromium mit dem Namen `<img src=x
+enthielte. Das Rang-Abzeichen im Kopf der Karten kommt seit 0.7.1 über die
+Bild-Entität (`/api/image_proxy/…`), also mit deren Prüfungen und ohne dass
+der Browser das CDN direkt fragt; die Karten nehmen nur eine Adresse dieser
+Form. Hat die Bild-Entität kein Bild, zeigen sie das Symbol der Karte. Bis
+0.7.0 luden sie das Abzeichen aus dem Attribut `rank_image` direkt vom CDN
+(Review B26). Geprüft in Chromium mit dem Namen `<img src=x
 onerror=alert(1)>` und einer Waffe `<script>alert(1)</script>`: beide als
 Text sichtbar, kein Skript, kein fremdes Bild. Namen erscheinen nicht im Log.
 Fehlertexte von aiohttp übernimmt die Integration seit 0.6.14 ohne
@@ -482,8 +491,15 @@ Automatische Tests laufen gegen zwei Versionen von Home Assistant: die
 Mindestversion 2026.2.3 (`pytest-homeassistant-custom-component` 0.13.316,
 Python 3.13) und seit 0.6.9 die aktuelle 2026.10.4 (0.13.375, Python 3.14).
 
-- **0.7.x:** 333 automatische Tests, grün gegen Home Assistant 2026.2.3 und
-  2026.10.4. 0.7.0: Erweiterungen E1, E2 und E4 aus dem Code-Review.
+- **0.7.x:** 342 automatische Tests, grün gegen Home Assistant 2026.2.3 und
+  2026.10.4. 0.7.1: Rang-Abzeichen der Karten über die Bild-Entität (B26),
+  fehlende Bilder mit Grund in der Diagnose; 9 neue Tests. Gegenprobe:
+  Abzeichen wie 0.7.0 vom CDN (7 Tests schlagen fehl), ohne Prüfung des
+  Zustands (1), der Adresse (1) bzw. ihres Anfangs (1), ohne
+  `missing_images` (1), fremder Server nicht benannt (2), Einträge ohne
+  Kills mitgezählt (1). Form der Adresse gegen die eigene Instanz geprüft
+  (Entity-ID aus Kleinbuchstaben und `_`, Token aus 64 Hex-Zeichen).
+  0.7.0: Erweiterungen E1, E2 und E4 aus dem Code-Review.
   Top-Gadget, Portal-Warteschlange (E1, damit B20), Dog Tags, Abzeichen und
   Ranked-Rang als eigene Sensoren (E2) mit Rückgangsschutz für Dog Tags und
   Abzeichen (auch gegen den gespeicherten Stand), zwei Blueprints (E4);
