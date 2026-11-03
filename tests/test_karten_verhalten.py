@@ -126,3 +126,25 @@ def test_arsenal_card_shows_gadgets(ergebnis) -> None:
 def test_world_card_shows_queue(ergebnis) -> None:
     html = ergebnis["karten"]["bf6-world-card"]["normal"]
     assert '<span class="l">Warte\u00adschlange</span><span class="n">3</span>' in html
+
+
+# --- B26: Rang-Abzeichen ueber den Bild-Proxy (0.7.1) ------------------------
+
+PROXY_BILD = "/api/image_proxy/image.spieler_rang_abzeichen?token=0a1b2c3d"
+KOPF_KARTEN = [e for e in ELEMENTE if e not in ("bf6-squad-card", "bf6-world-card")]
+
+
+@pytest.mark.parametrize("element", KOPF_KARTEN)
+def test_badge_via_image_proxy(ergebnis, element: str) -> None:
+    """Bis 0.7.0 setzten die Karten rank_image (CDN) direkt ein; die
+    Pruefungen der Bild-Entitaet galten dort nicht (Review B26)."""
+    html = ergebnis["karten"][element]["normal"]
+    assert f'<img src="{PROXY_BILD}" alt="">' in html
+    assert "cdn.gametools.network/ranks" not in html
+
+
+def test_no_badge_without_image(ergebnis) -> None:
+    """Bild-Entitaet ohne Bild (unbekannt) oder unpassende Adresse: Symbol."""
+    for fall in ("ohne_bild", "fremd", "pfad"):
+        assert "<img" not in ergebnis["kopf"][fall], fall
+        assert "<ha-icon" in ergebnis["kopf"][fall], fall

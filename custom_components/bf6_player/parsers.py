@@ -144,6 +144,56 @@ def image_url(value: Any) -> str | None:
     return text
 
 
+def image_problem(value: Any) -> str | None:
+    """Warum image_url eine Adresse nicht nimmt; None, wenn sie passt.
+
+    "empty": kein Text oder leer. Beim Beispielkonto der API-Dokumentation
+    am 03.11.2026 so bei 2 von 4 Gadgets und 2 von 6 Fahrzeugen.
+    "host:<name>": anderer Server als IMAGE_HOSTS. "invalid": sonst.
+    """
+    if image_url(value) is not None:
+        return None
+    text = _text(value)
+    if text is None:
+        return "empty"
+    try:
+        host = urlsplit(text).hostname
+    except ValueError:
+        return "invalid"
+    if host and host not in IMAGE_HOSTS:
+        return f"host:{host}"
+    return "invalid"
+
+
+def missing_images(data: dict[str, Any], limit: int = 15) -> list[dict[str, Any]]:
+    """Waffen, Fahrzeuge und Gadgets mit Kills, aber ohne Bild, mit Grund.
+
+    Seit 0.7.1 fuer die Diagnose: Live fehlte das Bild der Frag Grenade
+    (Top-Gadget), und aus der Auswertung allein war nicht zu sehen, ob die
+    API keine Adresse lieferte oder image_url eine verwarf.
+    """
+    result = []
+    for key, name_key in (
+        ("weapons", "weaponName"),
+        ("vehicles", "vehicleName"),
+        ("gadgets", "gadgetName"),
+    ):
+        for item in _list(data, key):
+            kills = _int(item.get("kills"))
+            if not kills or (problem := image_problem(item.get("image"))) is None:
+                continue
+            result.append(
+                {
+                    "list": key,
+                    "name": _text(item.get(name_key)) or _text(item.get("name")),
+                    "kills": kills,
+                    "problem": problem,
+                }
+            )
+    result.sort(key=lambda item: item["kills"], reverse=True)
+    return result[:limit]
+
+
 def _datetime(value: Any) -> datetime | None:
     """ISO-Zeit ("2012-09-30T15:52:49Z") oder Sekunden seit 1970."""
     if isinstance(value, str):
@@ -370,6 +420,7 @@ def player_stats(data: dict[str, Any] | None) -> dict[str, Any]:
         else None,
         "maps": maps(data),
         "modes": modes(data),
+        "missing_images": missing_images(data),
     }
 
 

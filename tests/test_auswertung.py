@@ -290,3 +290,53 @@ def test_images_filtered_in_stats_and_profile() -> None:
 )
 def test_clean_name(value, expected) -> None:
     assert parsers.clean_name(value) == expected
+
+
+# --- Fehlende Bilder (0.7.1) -------------------------------------------------
+
+
+def test_image_problem():
+    assert parsers.image_problem("https://cdn.gametools.network/a.png") is None
+    assert parsers.image_problem("") == "empty"
+    assert parsers.image_problem("   ") == "empty"
+    assert parsers.image_problem(None) == "empty"
+    assert parsers.image_problem(17) == "empty"
+    assert parsers.image_problem("https://eaassets.example/a.png") == (
+        "host:eaassets.example"
+    )
+    assert parsers.image_problem("http://cdn.gametools.network/a.png") == "invalid"
+    assert parsers.image_problem("https://cdn.gametools.network:8443/a") == "invalid"
+    assert parsers.image_problem("https://cdn.gametools.network:abc/a") == "invalid"
+
+
+def test_missing_images_only_with_kills_sorted():
+    data = {
+        "weapons": [
+            {
+                "weaponName": "Mit Bild",
+                "kills": 900,
+                "image": "https://cdn.gametools.network/w.png",
+            },
+            {"weaponName": "Fremd", "kills": 50, "image": "https://evil.example/w.png"},
+        ],
+        "vehicles": [
+            {"vehicleName": "Ohne Kill", "kills": 0, "image": ""},
+        ],
+        "gadgets": [
+            {"gadgetName": "Frag Grenade", "kills": 342, "image": ""},
+            {"gadgetName": "Ohne Feld", "kills": 7},
+        ],
+    }
+    assert parsers.missing_images(data) == [
+        {"list": "gadgets", "name": "Frag Grenade", "kills": 342, "problem": "empty"},
+        {
+            "list": "weapons",
+            "name": "Fremd",
+            "kills": 50,
+            "problem": "host:evil.example",
+        },
+        {"list": "gadgets", "name": "Ohne Feld", "kills": 7, "problem": "empty"},
+    ]
+    assert len(parsers.missing_images(data, limit=1)) == 1
+    assert parsers.missing_images({}) == []
+    assert parsers.missing_images({"gadgets": "kaputt"}) == []

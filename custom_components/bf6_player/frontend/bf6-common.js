@@ -13,7 +13,8 @@
  * Sicherheit: Jeder Text aus Entitaeten (Spielernamen, Waffen, Karten ...)
  * geht durch esc(), bevor er in innerHTML landet. Bildadressen kommen nur aus
  * der Integration, die sie auf https://cdn.gametools.network beschraenkt;
- * die Karten pruefen das zusaetzlich (bild()).
+ * die Karten pruefen das zusaetzlich (bild()). Das Rang-Abzeichen im Kopf
+ * kommt seit 0.7.1 ueber den Bild-Proxy von Home Assistant (proxyBild()).
  */
 
 export const FARBEN = {
@@ -160,6 +161,19 @@ export function bild(url) {
   } catch (err) {
     return null;
   }
+}
+
+// Adresse der Bild-Entitaet "Rang-Abzeichen" (Bild-Proxy von Home Assistant,
+// components/image: "/api/image_proxy/{entity_id}?token={hex}", Token alle
+// 5 Minuten neu). Seit 0.7.1 (Review B26): Der Browser laedt das Abzeichen
+// ueber Home Assistant statt direkt vom CDN; so gelten die Pruefungen der
+// Bild-Entitaet (keine Weiterleitung, nur Bilder, hoechstens 2 MB), und das
+// CDN sieht die Geraete nicht. Ohne Bild (Zustand unbekannt) gibt es keins.
+const PROXY = /^\/api\/image_proxy\/image\.[a-z0-9_]+\?token=[0-9a-f]+$/;
+
+export function proxyBild(stateObj) {
+  const url = stateObj?.attributes?.entity_picture;
+  return !leer(stateObj) && typeof url === "string" && PROXY.test(url) ? url : null;
 }
 
 export function leer(stateObj) {
@@ -381,7 +395,7 @@ export class Bf6Card extends HTMLElement {
   // Kopf fuer Karten eines Spielers: Rang-Abzeichen (sonst icon), Name,
   // Plattform mit Symbol und optional ein Zusatz (z. B. Titel der Karte)
   _spielerKopf(s, icon, zusatz) {
-    const abzeichen = bild(this._st(s.ids.rank)?.attributes?.rank_image);
+    const abzeichen = proxyBild(this._st(s.ids.rank_badge));
     return {
       symbol: abzeichen ? `<img src="${esc(abzeichen)}" alt="">` : `<ha-icon icon="${esc(icon)}"></ha-icon>`,
       name: s.name,
