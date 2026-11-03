@@ -11,9 +11,9 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.8.0.
+Version 0.8.1.
 
-> **Stand:** Version 0.8.0: Jeder Spieler ist ein Gerät mit 24 Sensoren,
+> **Stand:** Version 0.8.1: Jeder Spieler ist ein Gerät mit 24 Sensoren,
 > Rang-Abzeichen und den Ereignissen „Match beendet“ und „Rang gestiegen“
 > (siehe [Entitäten je Spieler](#entitäten-je-spieler)); dazu das Gerät
 > „BF6-Spielwelt“, Aktionen, Optionen, Diagnose, Reparaturhinweis, acht
@@ -348,9 +348,14 @@ sort: win_rate
   bildet die Langzeitstatistik stündlich, die ersten Werte erscheinen also
   einige Stunden nach der Installation. Seit 0.6.2 hat jeder Tag (bzw.
   jede Woche, jeder Monat) einen festen Platz, heute rechts; Tage ohne Werte
-  bleiben leer. Werte stehen beim Überfahren mit der
-  Maus an den Balken bzw. Punkten, Summe bzw. kleinster und größter Wert als
-  Text darunter.
+  bleiben leer. Summe bzw. kleinster und größter Wert stehen als Text
+  darunter. Seit 0.8.1 stehen links der oberste und der unterste Wert der
+  Skala, und beim Überfahren mit der Maus oder Antippen zeigt die Zeile unter
+  dem Diagramm „Datum: Wert“ (bis 0.8.0 nur im Tooltip des Browsers, auf
+  Touch-Geräten gar nicht). Die Linie hat eine Mindestspanne von zehn
+  Anzeigeschritten (K/D 0,1, Prozent 1 Punkt, Rang 10): Live am 03.11.2026
+  fiel sie über die volle Höhe zwischen zwei Tagesmitteln von 1,5040 und
+  1,5006, die beide als 1,50 angezeigt wurden.
 
 ## Blueprints
 
@@ -510,8 +515,13 @@ Automatische Tests laufen gegen zwei Versionen von Home Assistant: die
 Mindestversion 2026.2.3 (`pytest-homeassistant-custom-component` 0.13.316,
 Python 3.13) und seit 0.6.9 die aktuelle 2026.10.4 (0.13.375, Python 3.14).
 
-- **0.8.x:** 360 automatische Tests, grün gegen Home Assistant 2026.2.3 und
-  2026.10.4. 0.8.0: Name bei EA täglich abgeglichen (B12), Dialog „Neu
+- **0.8.x:** 362 automatische Tests, grün gegen Home Assistant 2026.2.3 und
+  2026.10.4. 0.8.1: Verlaufskarte mit Skala, Wertanzeige für Maus und
+  Berührung und Mindestspanne der Linie; 2 neue Tests mit den Werten vom
+  03.11.2026. Gegenprobe: ohne Mindestspanne, ohne Skalenwerte, ohne
+  `data-info`, ohne Listener für Berührung – jedes Mal schlug der zugehörige
+  Test fehl. Die Bedienung selbst (Maus über einen Balken, Antippen auf einem
+  Pixel 7, Verlassen) ist in Chromium geprüft, nicht in der CI. 0.8.0: Name bei EA täglich abgeglichen (B12), Dialog „Neu
   konfigurieren“ (E6), versionierte Migration auf 1.2 (B13); 18 neue Tests.
   Gegenprobe, jede Maßnahme einzeln zurückgenommen (jeweils mindestens ein
   Test schlägt fehl): Migration ohne Titelumstellung, ohne `api_name`,
