@@ -27,6 +27,10 @@ CONF_ACCOUNT = "account"
 CONF_PERSONA_ID = "persona_id"
 CONF_NUCLEUS_ID = "nucleus_id"
 CONF_PLATFORM = "platform"
+# Zuletzt von der API gelesener Name (seit 0.8.0). Ist er gleich CONF_NAME,
+# folgt der Spieler einer Umbenennung bei EA; ein eigener Name aus dem Dialog
+# "Neu konfigurieren" bleibt (Review B12, E6).
+CONF_API_NAME = "api_name"
 
 # Anzeigenamen der Plattformen aus der Spielersuche (Feld "platform"; laut
 # OpenAPI gelten ea, xbox, psn, steam und epic fuer die Stats als dieselbe
@@ -78,6 +82,8 @@ FIRST_REFRESH_WAIT_SECONDS = 10
 # Optionen des Haupteintrags einstellbar, in diesen Grenzen.
 STATS_INTERVAL_MINUTES = 15
 PROFILE_INTERVAL_MINUTES = 60
+# Namensabgleich ueber /bf6/player/ (seit 0.8.0): Namen aendern sich selten
+NAME_CHECK_HOURS = 24
 CONF_STATS_INTERVAL = "stats_interval"
 CONF_PROFILE_INTERVAL = "profile_interval"
 STATS_INTERVAL_RANGE = (10, 120)

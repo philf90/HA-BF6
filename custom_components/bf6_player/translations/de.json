@@ -30,6 +30,13 @@
           "data": {
             "account": "Konto"
           }
+        },
+        "reconfigure": {
+          "title": "Spieler umbenennen",
+          "description": "Name bei EA laut gametools API: {api_name}. Bleibt dieser Name, folgt der Spieler späteren Umbenennungen bei EA. Ein eigener Name (höchstens {max} Zeichen) bleibt, bis du hier wieder den Namen von EA einträgst. Entitäts-IDs ändern sich nicht.",
+          "data": {
+            "name": "Spielername"
+          }
         }
       },
       "error": {
@@ -40,7 +47,8 @@
       },
       "abort": {
         "entry_not_loaded": "Der Eintrag „gametools API“ ist nicht geladen. Neu laden und erneut versuchen.",
-        "already_configured": "Alle Konten mit diesem Namen sind schon eingerichtet."
+        "already_configured": "Alle Konten mit diesem Namen sind schon eingerichtet.",
+        "reconfigure_successful": "Der Spieler wurde umbenannt."
       }
     }
   },

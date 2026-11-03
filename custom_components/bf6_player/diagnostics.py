@@ -15,9 +15,9 @@ from homeassistant.components.diagnostics import REDACTED, async_redact_data
 from homeassistant.core import HomeAssistant
 
 from . import Bf6ConfigEntry
-from .const import CONF_NAME, CONF_NUCLEUS_ID, CONF_PERSONA_ID
+from .const import CONF_API_NAME, CONF_NAME, CONF_NUCLEUS_ID, CONF_PERSONA_ID
 
-TO_REDACT = {CONF_NAME, CONF_PERSONA_ID, CONF_NUCLEUS_ID}
+TO_REDACT = {CONF_NAME, CONF_API_NAME, CONF_PERSONA_ID, CONF_NUCLEUS_ID}
 
 
 def _coordinator(coordinator: Any) -> dict[str, Any]:

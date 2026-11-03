@@ -35,6 +35,7 @@ from . import parsers
 from .api import GametoolsClient, GametoolsError, GametoolsNotFound, PlayerRef
 from .const import (
     CONF_ACCOUNT,
+    CONF_API_NAME,
     CONF_NAME,
     CONF_NUCLEUS_ID,
     CONF_PERSONA_ID,
@@ -53,6 +54,7 @@ from .const import (
     SUBENTRY_PLAYER,
     player_title,
 )
+from .naming import rename_device
 from .parsers import markdown_text, valid_name
 
 NAME_SCHEMA = vol.Schema({vol.Required(CONF_NAME): TextSelector()})
@@ -67,6 +69,9 @@ class Bf6PlayerConfigFlow(ConfigFlow, domain=DOMAIN):
     """
 
     VERSION = 1
+    # 1.2 seit 0.8.0: Titel mit Plattform und CONF_API_NAME je Spieler
+    # (__init__.async_migrate_entry)
+    MINOR_VERSION = 2
 
     @staticmethod
     @callback
@@ -106,12 +111,16 @@ def account_label(account: dict[str, Any]) -> str:
 
 
 class PlayerSubentryFlow(ConfigSubentryFlow):
-    """Spieler hinzufuegen: Name suchen, Konto waehlen."""
+    """Spieler hinzufuegen: Name suchen, Konto waehlen. Seit 0.8.0 auch neu
+    konfigurieren: eigener Name oder wieder der Name bei EA (Review E6)."""
 
     def __init__(self) -> None:
         self._name = ""
         # persona_id als Text -> Treffer aus parsers.player_results
         self._accounts: dict[str, dict[str, Any]] = {}
+        # Name bei EA fuer den Dialog "Neu konfigurieren"; None: unbekannt
+        self._api_name: str | None = None
+        self._api_name_loaded = False
 
     @property
     def _client(self) -> GametoolsClient:
@@ -200,6 +209,7 @@ class PlayerSubentryFlow(ConfigSubentryFlow):
                         ),
                         data={
                             CONF_NAME: account["name"] or self._name,
+                            CONF_API_NAME: account["name"],
                             CONF_PERSONA_ID: account["persona_id"],
                             CONF_NUCLEUS_ID: account["nucleus_id"],
                             CONF_PLATFORM: account["platform"],
@@ -224,6 +234,60 @@ class PlayerSubentryFlow(ConfigSubentryFlow):
             description_placeholders={
                 "name": markdown_text(self._name),
                 "count": str(len(self._accounts)),
+            },
+        )
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> SubentryFlowResult:
+        """Namen des Spielers aendern; Entity-IDs bleiben.
+
+        Der Dialog zeigt den aktuellen Namen bei EA (/bf6/player/). Wer ihn
+        uebernimmt, folgt wieder spaeteren Umbenennungen bei EA; ein eigener
+        Name bleibt (naming.py).
+        """
+        entry = self._get_entry()
+        if entry.state is not ConfigEntryState.LOADED:
+            return self.async_abort(reason="entry_not_loaded")
+        subentry = self._get_reconfigure_subentry()
+        data = subentry.data
+        if not self._api_name_loaded:
+            self._api_name_loaded = True
+            player = PlayerRef(
+                int(data[CONF_PERSONA_ID]),
+                int(data[CONF_NUCLEUS_ID]),
+                data[CONF_PLATFORM],
+            )
+            try:
+                self._api_name = parsers.player_name(
+                    await self._client.player_by_id(player), player.persona_id
+                )
+            except GametoolsError:
+                self._api_name = None
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            name = user_input[CONF_NAME].strip()
+            if valid_name(name):
+                new_data = {**data, CONF_NAME: name}
+                if self._api_name is not None:
+                    new_data[CONF_API_NAME] = self._api_name
+                rename_device(self.hass, entry, data[CONF_PERSONA_ID], name)
+                return self.async_update_and_abort(
+                    entry,
+                    subentry,
+                    data=new_data,
+                    title=player_title(name, data[CONF_PLATFORM]),
+                )
+            errors["base"] = "invalid_name"
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=self.add_suggested_values_to_schema(
+                NAME_SCHEMA, user_input or {CONF_NAME: data.get(CONF_NAME, "")}
+            ),
+            errors=errors,
+            description_placeholders={
+                "api_name": markdown_text(self._api_name) if self._api_name else "–",
+                "max": str(NAME_MAX),
             },
         )
 

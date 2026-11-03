@@ -1,5 +1,7 @@
 """Gemeinsame Fixtures."""
 
+import re
+
 import pytest
 from homeassistant.config_entries import ConfigSubentryData
 from homeassistant.core import HomeAssistant
@@ -385,7 +387,19 @@ STATUS = {
 }
 
 
-def mock_world(aioclient_mock, events=EVENTS, status=STATUS) -> None:
-    """Abfragen der Spielwelt nachbauen (jeder geladene Haupteintrag)."""
+# Namensabgleich ueber die IDs (seit 0.8.0): nur Abfragen mit playerid, damit
+# Tests der Namenssuche (?name=...) ihre eigenen Antworten bekommen
+PLAYER_BY_ID = re.compile(
+    r"^https://api\.gametools\.network/bf6/player/\?(.*&)?playerid="
+)
+
+
+def mock_world(aioclient_mock, events=EVENTS, status=STATUS, players=None) -> None:
+    """Abfragen der Spielwelt nachbauen (jeder geladene Haupteintrag), dazu
+    den Namensabgleich der Spieler. Vorgabe ohne Treffer: Namen bleiben; die
+    Tests des Abgleichs (test_namen.py) geben eigene Antworten vor."""
     aioclient_mock.get("https://api.gametools.network/bf6/gameevents/", json=events)
     aioclient_mock.get("https://api.gametools.network/bf6/status/", json=status)
+    aioclient_mock.get(
+        PLAYER_BY_ID, json={"results": []} if players is None else players
+    )
