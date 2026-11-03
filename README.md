@@ -11,9 +11,9 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.6.11.
+Version 0.6.12.
 
-> **Stand:** Version 0.6.11: Jeder Spieler ist ein Gerät mit 20 Sensoren,
+> **Stand:** Version 0.6.12: Jeder Spieler ist ein Gerät mit 20 Sensoren,
 > Rang-Abzeichen und den Ereignissen „Match beendet“ und „Rang gestiegen“
 > (siehe [Entitäten je Spieler](#entitäten-je-spieler)); dazu das Gerät
 > „BF6-Spielwelt“, Aktionen, Optionen, Diagnose, Reparaturhinweis und acht
@@ -416,8 +416,17 @@ Automatische Tests laufen gegen zwei Versionen von Home Assistant: die
 Mindestversion 2026.2.3 (`pytest-homeassistant-custom-component` 0.13.316,
 Python 3.13) und seit 0.6.9 die aktuelle 2026.10.4 (0.13.375, Python 3.14).
 
-- **0.6.x:** 288 automatische Tests, grün gegen Home Assistant 2026.2.3 und
-  2026.10.4. 0.6.11: „Match beendet“ braucht nur noch `matches`, fehlende
+- **0.6.x:** 293 automatische Tests, grün gegen Home Assistant 2026.2.3 und
+  2026.10.4. 0.6.12: Rang-Abzeichen der Bild-Entität vollständig geladen.
+  0.6.11 las mit `content.read(n)` nur den ersten Teil der Antwort (gegen
+  den CDN 13.690 bis 23.829 von 258.834 Bytes); der Entitätsdialog blieb
+  leer, ohne Warnung, und das abgeschnittene Bild blieb zwischengespeichert.
+  Live aufgefallen am 03.11.2026; die Tests hatten es nicht gezeigt, weil
+  der Mock die Antwort auf einmal liefert. Jetzt Lesen in Blöcken bis zum
+  Ende, Abgleich mit `Content-Length`; neue Tests füttern einen echten
+  aiohttp-`StreamReader` in Teilen. Gegen den CDN geprüft: 3 von 3
+  Abrufen vollständig und byte-gleich. Gegenprobe: Lesen wie 0.6.11
+  (4 Tests schlagen fehl), ohne Längenabgleich (1). 0.6.11: „Match beendet“ braucht nur noch `matches`, fehlende
   Zähler stehen als `None` im Ereignis; das Rang-Abzeichen lädt die
   Integration selbst (keine Weiterleitung, nur `image/*`, höchstens 2 MB,
   Zwischenspeicher je Adresse ohne das private `_cached_image` von Home
