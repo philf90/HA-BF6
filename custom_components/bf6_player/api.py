@@ -148,6 +148,19 @@ class GametoolsClient:
         """Konten zu einem Namen; Auswertung mit parsers.player_results."""
         return await self._get("/bf6/player/", {"name": name, "limit": str(limit)})
 
+    async def player_by_id(self, player: PlayerRef) -> dict[str, Any]:
+        """Konto zu den IDs, fuer den aktuellen Namen (seit 0.8.0).
+
+        /bf6/stats/ liefert userName bei einer Abfrage ueber die IDs leer
+        (null; Beispielkonto der API-Dokumentation, 03.11.2026). /bf6/player/
+        nimmt laut OpenAPI auch playerid und nucleus_id und liefert dann
+        displayName wie die Namenssuche. Auswertung mit parsers.player_name.
+        """
+        return await self._get(
+            "/bf6/player/",
+            {"playerid": str(player.persona_id), "nucleus_id": str(player.nucleus_id)},
+        )
+
     async def stats(
         self, player: PlayerRef, separation: bool = False
     ) -> dict[str, Any]:

@@ -247,6 +247,18 @@ def player_results(data: dict[str, Any] | None) -> list[dict[str, Any]]:
     return results
 
 
+def player_name(data: dict[str, Any] | None, persona_id: int) -> str | None:
+    """Name des Kontos mit dieser Persona-ID aus /bf6/player/, sonst None.
+
+    Die Antwort kann weitere Konten derselben Nucleus-ID enthalten (beim
+    Beispielkonto am 03.11.2026 EA und Steam mit verschiedenen Namen).
+    """
+    for account in player_results(data):
+        if account["persona_id"] == persona_id:
+            return account["name"]
+    return None
+
+
 def _weapon(item: dict[str, Any]) -> dict[str, Any]:
     return {
         "name": _text(item.get("weaponName")) or _text(item.get("name")),

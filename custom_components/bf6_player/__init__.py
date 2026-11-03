@@ -28,6 +28,7 @@ from homeassistant.loader import async_get_integration
 from .api import GametoolsClient
 from .baseline import Bf6Baseline
 from .const import (
+    CONF_API_NAME,
     CONF_NAME,
     CONF_PLATFORM,
     DOMAIN,
@@ -123,6 +124,25 @@ async def _async_register_cards(hass: HomeAssistant) -> None:
         add_extra_js_url(hass, f"{CARD_PATH}/{card}?v={integration.version}")
 
 
+async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Gespeicherte Daten einmalig umstellen (seit 0.8.0, Review B13).
+
+    1.1 -> 1.2: Plattform in alte Titel (Spieler aus 0.3.0); bis 0.7.1 lief
+    das bei jedem Start. Dazu CONF_API_NAME = CONF_NAME fuer bestehende
+    Spieler: Beide Namen stammen aus displayName der Namenssuche, der
+    Spieler folgt damit einer spaeteren Umbenennung bei EA (naming.py).
+    Eine neuere Version als diese kennt die Integration nicht.
+    """
+    if entry.version > 1:
+        return False
+    if entry.minor_version < 2:
+        _add_platform_to_titles(hass, entry)
+        _store_api_names(hass, entry)
+        hass.config_entries.async_update_entry(entry, minor_version=2)
+        _LOGGER.debug("Eintrag auf Version 1.2 umgestellt")
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: Bf6ConfigEntry) -> bool:
     """Haupteintrag laden und die Abfragen starten.
 
@@ -130,7 +150,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: Bf6ConfigEntry) -> bool:
     Charakter gibt es deshalb beim Start nichts zu pruefen. Scheitert die
     erste Abfrage eines Spielers, sind nur seine Entitaeten nicht verfuegbar.
     """
-    _add_platform_to_titles(hass, entry)
     _remove_stale_issues(hass, entry)
     baseline = Bf6Baseline(hass, entry.entry_id)
     await baseline.async_load()
@@ -234,9 +253,10 @@ def _remove_stale_issues(hass: HomeAssistant, entry: ConfigEntry) -> None:
             ir.async_delete_issue(hass, DOMAIN, issue)
 
 
-def _add_platform_to_titles(hass: HomeAssistant, entry: Bf6ConfigEntry) -> None:
+def _add_platform_to_titles(hass: HomeAssistant, entry: ConfigEntry) -> None:
     """Spieler aus 0.3.0 hiessen nur nach dem Namen; seit 0.3.1 steht die
     Plattform im Titel. Umbenannte Spieler (Titel ungleich Name) bleiben.
+    Seit 0.8.0 nur noch in der Migration auf 1.2.
     """
     for subentry in list(entry.subentries.values()):
         if subentry.subentry_type != SUBENTRY_PLAYER:
@@ -247,4 +267,18 @@ def _add_platform_to_titles(hass: HomeAssistant, entry: Bf6ConfigEntry) -> None:
             continue
         hass.config_entries.async_update_subentry(
             entry, subentry, title=player_title(name, platform)
+        )
+
+
+def _store_api_names(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """CONF_API_NAME fuer Spieler von vor 0.8.0 (Migration auf 1.2)."""
+    for subentry in list(entry.subentries.values()):
+        if subentry.subentry_type != SUBENTRY_PLAYER:
+            continue
+        if CONF_API_NAME in subentry.data or not subentry.data.get(CONF_NAME):
+            continue
+        hass.config_entries.async_update_subentry(
+            entry,
+            subentry,
+            data={**subentry.data, CONF_API_NAME: subentry.data[CONF_NAME]},
         )

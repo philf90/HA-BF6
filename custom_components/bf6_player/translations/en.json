@@ -30,6 +30,13 @@
           "data": {
             "account": "Account"
           }
+        },
+        "reconfigure": {
+          "title": "Rename player",
+          "description": "Name at EA according to the gametools API: {api_name}. If you keep this name, the player follows later renames at EA. A name of your own (at most {max} characters) stays until you enter the EA name here again. Entity IDs do not change.",
+          "data": {
+            "name": "Player name"
+          }
         }
       },
       "error": {
@@ -40,7 +47,8 @@
       },
       "abort": {
         "entry_not_loaded": "The gametools API entry is not loaded. Reload it and try again.",
-        "already_configured": "All accounts with this name are already set up."
+        "already_configured": "All accounts with this name are already set up.",
+        "reconfigure_successful": "The player was renamed."
       }
     }
   },

@@ -11,9 +11,9 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.7.1.
+Version 0.8.0.
 
-> **Stand:** Version 0.7.1: Jeder Spieler ist ein Gerät mit 24 Sensoren,
+> **Stand:** Version 0.8.0: Jeder Spieler ist ein Gerät mit 24 Sensoren,
 > Rang-Abzeichen und den Ereignissen „Match beendet“ und „Rang gestiegen“
 > (siehe [Entitäten je Spieler](#entitäten-je-spieler)); dazu das Gerät
 > „BF6-Spielwelt“, Aktionen, Optionen, Diagnose, Reparaturhinweis, acht
@@ -164,7 +164,16 @@ privates Profil hinweg und nach einem Neustart mit dem gespeicherten.
   und alle im Attribut `ranked`. Die Rangnamen kommen von der API, nicht
   übersetzt.
 - **Entity-IDs** entstehen aus dem Spielernamen und dem Namen des Sensors in
-  der Sprache der Oberfläche, z. B. `sensor.testspieler_kills`.
+  der Sprache der Oberfläche, z. B. `sensor.testspieler_kills`. Sie bleiben,
+  auch wenn sich der Name später ändert.
+- **Name bei EA** (seit 0.8.0): Einmal am Tag fragt die Integration je
+  Spieler den Namen über die IDs ab (`/bf6/player/`). Hat er sich bei EA
+  geändert, folgen der Gerätename und der Titel des Spielers (ein von Hand
+  geänderter Titel bleibt). Einen in Home Assistant vergebenen Gerätenamen
+  und die Entity-IDs ändert sie nicht. Mit einem eigenen Namen aus dem
+  Dialog „Neu konfigurieren“ folgt der Spieler EA nicht mehr, bis dort
+  wieder der Name von EA steht. Bis 0.7.1 blieb der Name aus dem Dialog
+  „Spieler hinzufügen“ für immer.
 
 ### Ereignisse (seit 0.5.0)
 
@@ -242,6 +251,15 @@ liefern.
   gibt es nicht: Alle Spielerwerte kommen aus einer Abfrage, eine Gruppe
   spart nichts; einzelne Entitäten lassen sich in Home Assistant
   deaktivieren.
+- **Neu konfigurieren** (seit 0.8.0, am Spieler unter dem Eintrag „gametools
+  API“): Namen ändern. Der
+  Dialog zeigt den aktuellen Namen bei EA; wer ihn stehen lässt, folgt
+  späteren Umbenennungen bei EA. IDs, Plattform und Entity-IDs bleiben.
+- **Versionierte Migration** (seit 0.8.0): Gespeicherte Daten stellt die
+  Integration einmalig beim Start um (Version 1.2: Plattform im Titel alter
+  Spieler, Name bei EA für den Abgleich). Bis 0.7.1 lief die Titelumstellung
+  aus 0.3.1 bei jedem Start. Ein Eintrag einer neueren Version wird nicht
+  geladen.
 - **`bf6_player.refresh`**: Spieler und Spielwelt sofort abfragen, wahlweise
   nur bestimmte Geräte. Die API cacht Antworten 10 Minuten. Seit 0.6.8
   fasst die Aktion Aufrufe innerhalb von 10 Sekunden zusammen: Der erste
@@ -369,6 +387,7 @@ per ID, nie per Name:
 | Endpunkt | Parameter | Auswertung |
 |---|---|---|
 | `/bf6/player/` | `name`, `limit` | Konten mit Persona-ID, Nucleus-ID, Plattform, Name, Erstellungsdatum, öffentlich ja/nein |
+| `/bf6/player/` (seit 0.8.0) | `playerid`, `nucleus_id`; einmal am Tag je Spieler und im Dialog „Neu konfigurieren“ | aktueller Name des Kontos (`displayName`); `userName` aus `/bf6/stats/` ist bei einer Abfrage über die IDs leer (Beispielkonto der API, 03.11.2026) |
 | `/bf6/stats/` | `playerid`, `nucleus_id`, `platform`, `format_values=false`, `seperation` | Kennzahlen, Top 5 Waffen, Fahrzeuge und Gadgets, Klassen, Karten, Modi |
 | `/bf6/profile/` | `playerid`, `nucleus_id`, `platform` | Rang, Rangname, Rang-Bild, Dog Tags, Abzeichen, Ranked-Rang |
 | `/bf6/gameevents/` | – | Laufende Saison mit Start und Ende, Battle Pass |
@@ -453,7 +472,7 @@ Shell, keine Datenbank-Abfrage, kein Template); geprüft am 02.11.2026:
 | Abfrage an die API | nur als Parameter `name` an den festen Pfad `/bf6/player/`; aiohttp kodiert ihn (`&` → `%26`, `#` → `%23`, `%` → `%25`). Getestet mit `&limit=…`, `#`, `../`, `%2F%00`, HTML, SQL und Unicode: Pfad und `limit` bleiben unverändert |
 | Text im Dialog | Das Frontend zeigt Beschreibungen als Markdown und filtert HTML danach mit `filterXSS`; Links ließe es durch. Der Name im Text „Konto wählen“ wird deshalb mit `\` vor jedem Markdown-Zeichen eingesetzt |
 | Auswahlliste, Titel | Das Frontend setzt Beschriftungen als Text ein (Lit), nicht als HTML |
-| Name aus der API-Antwort | Steuer- und Richtungszeichen entfernt, höchstens 64 Zeichen, bevor er Titel des Spielers wird |
+| Name aus der API-Antwort | Steuer- und Richtungszeichen entfernt, höchstens 64 Zeichen, bevor er Titel des Spielers wird; das gilt seit 0.8.0 auch für den täglichen Abgleich. Im Dialog „Neu konfigurieren“ steht er mit `\` vor jedem Markdown-Zeichen. Im Log steht bei einer Umbenennung nur die Persona-ID; in der Diagnose ist der Name bei EA (`api_name`) geschwärzt |
 | Bildadressen aus der API | nur `https://cdn.gametools.network/…` ohne Benutzer, Passwort und fremden Port; alles andere wird verworfen, damit Home Assistant keine Adressen im eigenen Netz abruft. Das Rang-Abzeichen lädt die Integration seit 0.6.11 selbst: ohne Weiterleitung (eine Weiterleitung könnte sonst doch ins eigene Netz führen), nur Status 200 mit `image/*`, höchstens 2 MB (das echte Abzeichen hat 259 KB), Zeitlimit 10 s |
 
 In den Karten (seit 0.6.0) geht jeder Text aus Entitäten und Geräten
@@ -491,6 +510,22 @@ Automatische Tests laufen gegen zwei Versionen von Home Assistant: die
 Mindestversion 2026.2.3 (`pytest-homeassistant-custom-component` 0.13.316,
 Python 3.13) und seit 0.6.9 die aktuelle 2026.10.4 (0.13.375, Python 3.14).
 
+- **0.8.x:** 360 automatische Tests, grün gegen Home Assistant 2026.2.3 und
+  2026.10.4. 0.8.0: Name bei EA täglich abgeglichen (B12), Dialog „Neu
+  konfigurieren“ (E6), versionierte Migration auf 1.2 (B13); 18 neue Tests.
+  Gegenprobe, jede Maßnahme einzeln zurückgenommen (jeweils mindestens ein
+  Test schlägt fehl): Migration ohne Titelumstellung, ohne `api_name`,
+  Titelumstellung wieder bei jedem Start, neuere Version nicht abgelehnt,
+  eigener Name bzw. eigener Titel überschrieben, Gerät nicht umbenannt,
+  Abgleich bei jeder Abfrage, Fehlschlag als Abgleich gezählt, Konto nicht
+  nach Persona-ID gewählt, `api_name` nicht geschwärzt, im Dialog: Gerät
+  nicht umbenannt, Name bei EA nicht gespeichert, Markdown nicht
+  entschärft, Name nicht geprüft, API bei jedem Absenden gefragt; neuer
+  Spieler ohne `api_name`. Gefunden beim Bauen: `userName` aus
+  `/bf6/stats/` ist bei einer Abfrage über die IDs leer, das Review hatte
+  es als Quelle genannt; `device_registry.async_get_device` ist in 2026.10
+  abgekündigt, der Ersatz fehlt in 2026.2.3 (Suche über die Geräte des
+  Eintrags).
 - **0.7.x:** 342 automatische Tests, grün gegen Home Assistant 2026.2.3 und
   2026.10.4. 0.7.1: Rang-Abzeichen der Karten über die Bild-Entität (B26),
   fehlende Bilder mit Grund in der Diagnose; 9 neue Tests. Gegenprobe:

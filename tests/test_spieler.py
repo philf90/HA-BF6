@@ -69,6 +69,8 @@ async def test_add_player(hass: HomeAssistant, aioclient_mock: AiohttpClientMock
     assert subentry.unique_id == "1000000001"
     assert dict(subentry.data) == {
         "name": "Testspieler",
+        # Seit 0.8.0: Name bei EA fuer den Abgleich (naming.py)
+        "api_name": "Testspieler",
         "persona_id": 1000000001,
         "nucleus_id": 2000000001,
         "platform": "ea",

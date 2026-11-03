@@ -32,6 +32,7 @@ from .const import (
     EVENT_MATCH_FINISHED,
     EVENT_RANK_UP,
     MATCH_COUNTERS,
+    NAME_CHECK_HOURS,
     PROFILE_COUNTERS,
     PROFILE_INTERVAL_MINUTES,
     RETRY_AFTER_MAX_SECONDS,
@@ -39,6 +40,7 @@ from .const import (
     STATS_INTERVAL_MINUTES,
     WORLD_INTERVAL_MINUTES,
 )
+from .naming import async_apply_api_name
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -211,6 +213,8 @@ class Bf6PlayerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         }
         # Die letzte Profilabfrage hatte gesunkene Werte, sie wurden gehalten
         self._profile_drop_pending = False
+        # Letzter gelungener Namensabgleich (seit 0.8.0, naming.py)
+        self._name_checked_at: datetime | None = None
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
@@ -229,6 +233,7 @@ class Bf6PlayerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if previous_profile is None and previous_rank is not None:
             previous_profile = {"rank": previous_rank}
         await self._update_profile()
+        await self._check_name()
         self.events = []
         self.events_serial += 1
         since_text = since.isoformat() if since else None
@@ -336,6 +341,39 @@ class Bf6PlayerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         _LOGGER.debug("Profil von Spieler %s geladen", persona_id)
         self._profile = self._hold_profile_drop(profile)
         self._profile_at = now
+
+    async def _check_name(self) -> None:
+        """Namen alle NAME_CHECK_HOURS mit der API abgleichen (seit 0.8.0).
+
+        Eine Abfrage an /bf6/player/ je Spieler und Zeitraum, beim Start die
+        erste. Scheitert sie, bleibt alles, wie es ist; die naechste Abfrage
+        versucht es erneut. Im Log steht die Persona-ID, kein Name.
+        """
+        now = dt_util.utcnow()
+        if self._name_checked_at is not None and now - self._name_checked_at < (
+            timedelta(hours=NAME_CHECK_HOURS)
+        ):
+            return
+        persona_id = self.subentry.data[CONF_PERSONA_ID]
+        try:
+            name = parsers.player_name(
+                await self.client.player_by_id(self.player), self.player.persona_id
+            )
+        except (GametoolsError, *PARSE_ERRORS) as err:
+            _LOGGER.debug("Name von Spieler %s nicht abgeglichen: %s", persona_id, err)
+            return
+        self._name_checked_at = now
+        entry = self.config_entry
+        subentry = entry.subentries.get(self.subentry.subentry_id)
+        if name is None or subentry is None:
+            return
+        if async_apply_api_name(self.hass, entry, subentry, name):
+            _LOGGER.info(
+                "Spieler %s: Name bei EA geaendert; Geraet und Titel angepasst",
+                persona_id,
+            )
+        # Der Untereintrag ist ein neues Objekt
+        self.subentry = entry.subentries[self.subentry.subentry_id]
 
     def _hold_profile_drop(self, profile: dict[str, Any]) -> dict[str, Any]:
         """Gesunkene Dog Tags oder Abzeichen erst mit der naechsten
