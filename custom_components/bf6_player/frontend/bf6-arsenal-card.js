@@ -1,20 +1,20 @@
 /*
- * Karte "BF6 Arsenal": meistgenutzte Waffen und Fahrzeuge eines Spielers.
+ * Karte "BF6 Arsenal": meistgenutzte Waffen, Fahrzeuge und Gadgets eines Spielers.
  *
  *   type: custom:bf6-arsenal-card
  *   entity: sensor.<spieler>_kills   # leer: erster Spieler
  *   limit: 5                         # Eintraege je Gruppe, 1 bis 5
- *   show: [weapons, vehicles]        # Gruppen, Vorgabe beide
+ *   show: [weapons, vehicles, gadgets]  # Gruppen, Vorgabe alle drei
  *
- * Daten: Attribut "top" der Sensoren "Meiste Kills mit Waffe" und "Meiste
- * Kills mit Fahrzeug" (die fuenf Eintraege mit den meisten Kills). Bilder nur
- * von https://cdn.gametools.network.
+ * Daten: Attribut "top" der Sensoren "Top-Waffe", "Top-Fahrzeug" und (seit
+ * 0.7.0) "Top-Gadget", je die fuenf Eintraege mit den meisten Kills. Bilder
+ * nur von https://cdn.gametools.network.
  */
 
 const C = await import(new URL(`bf6-common.js${new URL(import.meta.url).search}`, import.meta.url));
 const { esc, fmt, prozent, bild, attrListe, grenze } = C;
 
-const GRUPPEN = { weapons: "top_weapon", vehicles: "top_vehicle" };
+const GRUPPEN = { weapons: "top_weapon", vehicles: "top_vehicle", gadgets: "top_gadget" };
 
 class Bf6ArsenalCard extends C.Bf6Card {
   static TEXT = {
@@ -22,6 +22,7 @@ class Bf6ArsenalCard extends C.Bf6Card {
       title: "BF6 Arsenal",
       weapons: "Waffen",
       vehicles: "Fahrzeuge",
+      gadgets: "Gadgets",
       kills: "Kills",
       accuracy: "Genauigkeit",
       headshots: "Headshots",
@@ -33,6 +34,7 @@ class Bf6ArsenalCard extends C.Bf6Card {
       title: "BF6 Arsenal",
       weapons: "Weapons",
       vehicles: "Vehicles",
+      gadgets: "Gadgets",
       kills: "Kills",
       accuracy: "Accuracy",
       headshots: "Headshots",
@@ -50,7 +52,7 @@ class Bf6ArsenalCard extends C.Bf6Card {
         selector: {
           select: {
             multiple: true,
-            options: ["weapons", "vehicles"].map((value) => ({
+            options: Object.keys(GRUPPEN).map((value) => ({
               value,
               label: (Bf6ArsenalCard.TEXT[lang] || Bf6ArsenalCard.TEXT.en)[value],
             })),
@@ -97,7 +99,9 @@ class Bf6ArsenalCard extends C.Bf6Card {
             `${this._t("headshots")} ${prozent(e.headshot_rate, lang)}`,
             `${this._t("kpm")} ${fmt(e.kpm, lang, 2)}`,
           ]
-        : [e.type, typeof e.seconds === "number" ? `${fmt(e.seconds / 3600, lang, 1)}\u00a0${this._t("hours")}` : null];
+        : gruppe === "vehicles"
+          ? [e.type, typeof e.seconds === "number" ? `${fmt(e.seconds / 3600, lang, 1)}\u00a0${this._t("hours")}` : null]
+          : [e.type];
     const breite = Math.round(((e.kills || 0) / max) * 100);
     return `
       <div class="zeile${url ? " bild" : ""}">
@@ -109,4 +113,4 @@ class Bf6ArsenalCard extends C.Bf6Card {
   }
 }
 
-C.registrieren("bf6-arsenal-card", Bf6ArsenalCard, "BF6 Arsenal", "Waffen und Fahrzeuge mit den meisten Kills eines Battlefield-6-Spielers.");
+C.registrieren("bf6-arsenal-card", Bf6ArsenalCard, "BF6 Arsenal", "Waffen, Fahrzeuge und Gadgets mit den meisten Kills eines Battlefield-6-Spielers.");

@@ -4,13 +4,22 @@ Beide entstehen aus dem Vergleich zweier Abfragen (coordinator.events). Seit
 0.6.13 vergleicht die erste Abfrage nach dem Start mit dem gespeicherten
 Stand (baseline.py): Matches waehrend eines Neustarts loesen danach ein
 Ereignis aus, mit "since" als Zeit des verglichenen Stands.
+
+Seit 0.7.0 kommt ein solches nachgeholtes Ereignis erst nach dem ersten
+Schreiben des Zustands (wiederhergestelltes letztes Ereignis). Vorher war es
+selbst der erste Zustand, und eine Automation konnte es nicht von einem nur
+wiederhergestellten alten Ereignis unterscheiden (beide ohne Zustand davor).
+Die Blueprints verwerfen genau diesen Fall.
 """
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from homeassistant.components.event import EventEntity
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.event import async_call_later
 
 from . import Bf6ConfigEntry
 from .const import EVENT_MATCH_FINISHED, EVENT_RANK_UP
@@ -54,7 +63,13 @@ class Bf6Event(Bf6PlayerEntity, EventEntity):
 
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
-        # Ereignisse einer Abfrage, die vor dem Anlegen fertig war
+        # Ereignisse einer Abfrage, die vor dem Anlegen fertig war. Home
+        # Assistant schreibt den ersten Zustand erst nach dieser Methode
+        # (Entity.add_to_platform_finish); deshalb erst danach ausloesen.
+        self.async_on_remove(async_call_later(self.hass, 0, self._fire_after_add))
+
+    @callback
+    def _fire_after_add(self, _now: datetime) -> None:
         self._fire_new()
 
     @callback

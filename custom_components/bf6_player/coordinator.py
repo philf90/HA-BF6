@@ -32,6 +32,7 @@ from .const import (
     EVENT_MATCH_FINISHED,
     EVENT_RANK_UP,
     MATCH_COUNTERS,
+    PROFILE_COUNTERS,
     PROFILE_INTERVAL_MINUTES,
     RETRY_AFTER_MAX_SECONDS,
     SEASON_INTERVAL_MINUTES,
@@ -203,6 +204,13 @@ class Bf6PlayerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._stored = baseline.get(subentry.subentry_id) if baseline else None
         # Zeit der letzten uebernommenen Abfrage, fuer "since" im Ereignis
         self._last_at: datetime | None = None
+        # Letzter bekannter Stand von Dog Tags und Abzeichen (seit 0.7.0),
+        # auch ueber ein privates Profil ohne diese Werte hinweg
+        self._profile_counters: dict[str, int | None] = {
+            key: (self._stored or {}).get(key) for key in PROFILE_COUNTERS
+        }
+        # Die letzte Profilabfrage hatte gesunkene Werte, sie wurden gehalten
+        self._profile_drop_pending = False
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
@@ -241,6 +249,7 @@ class Bf6PlayerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 stats,
                 rank_now if rank_now is not None else (self._stored or {}).get("rank"),
                 self._last_at,
+                self._profile_counters,
             )
         return {"stats": stats, "profile": self._profile}
 
@@ -320,14 +329,50 @@ class Bf6PlayerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return
         persona_id = self.subentry.data[CONF_PERSONA_ID]
         try:
-            self._profile = parsers.player_profile(
-                await self.client.profile(self.player)
-            )
+            profile = parsers.player_profile(await self.client.profile(self.player))
         except (GametoolsError, *PARSE_ERRORS) as err:
             _LOGGER.warning("Profil von Spieler %s nicht geladen: %s", persona_id, err)
             return
         _LOGGER.debug("Profil von Spieler %s geladen", persona_id)
+        self._profile = self._hold_profile_drop(profile)
         self._profile_at = now
+
+    def _hold_profile_drop(self, profile: dict[str, Any]) -> dict[str, Any]:
+        """Gesunkene Dog Tags oder Abzeichen erst mit der naechsten
+        Profilabfrage uebernehmen (seit 0.7.0, wie _hold_drop).
+
+        Verglichen wird mit dem letzten bekannten Wert, nach dem Start mit
+        dem gespeicherten. Bis zur Bestaetigung zeigt der Sensor den alten
+        Wert; ein Ausreisser aendert so die Langzeitstatistik nicht.
+        """
+        drops = [
+            key
+            for key in PROFILE_COUNTERS
+            if isinstance(before := self._profile_counters.get(key), int)
+            and isinstance(after := profile.get(key), int)
+            and after < before
+        ]
+        persona_id = self.subentry.data[CONF_PERSONA_ID]
+        if drops and not self._profile_drop_pending:
+            self._profile_drop_pending = True
+            _LOGGER.warning(
+                "Spieler %s: %s gesunken; alter Wert bleibt, bis die naechste "
+                "Profilabfrage den Rueckgang bestaetigt",
+                persona_id,
+                ", ".join(drops),
+            )
+            return {**profile, **{key: self._profile_counters[key] for key in drops}}
+        if drops:
+            _LOGGER.warning(
+                "Spieler %s: Rueckgang von %s bestaetigt, Werte uebernommen",
+                persona_id,
+                ", ".join(drops),
+            )
+        self._profile_drop_pending = False
+        for key in PROFILE_COUNTERS:
+            if isinstance(value := profile.get(key), int):
+                self._profile_counters[key] = value
+        return profile
 
     def _create_issue(self) -> None:
         ir.async_create_issue(

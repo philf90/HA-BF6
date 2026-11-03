@@ -1,0 +1,79 @@
+blueprint:
+  name: "BF6: Match beendet → Benachrichtigung"
+  description: >-
+    Schickt nach einem beendeten Match eine Benachrichtigung an die
+    Home-Assistant-App: Ergebnis (bei genau einem Match), Kills, Tode und
+    K/D der neuen Matches. Grundlage ist die Ereignis-Entität „Match beendet“
+    der Integration BF6 Spieler. Die API kennt keine einzelnen Matches; lagen
+    mehrere zwischen zwei Abfragen, kommt eine Nachricht über alle. Nach einem
+    Neustart oder Neuladen kommt keine Nachricht für ein altes Ereignis.
+  domain: automation
+  source_url: https://github.com/philf90/HA-BF6/blob/main/blueprints/automation/bf6_player/bf6_match_finished_notify.yaml
+  author: philf90
+  homeassistant:
+    min_version: "2026.2.0"
+  input:
+    match_event:
+      name: Ereignis „Match beendet“
+      description: Eine oder mehrere Entitäten „Match beendet“ (je Spieler eine).
+      selector:
+        entity:
+          multiple: true
+          filter:
+            - integration: bf6_player
+              domain: event
+    notify_device:
+      name: Gerät für die Benachrichtigung
+      description: Gerät mit der offiziellen Home-Assistant-App.
+      selector:
+        device:
+          filter:
+            - integration: mobile_app
+    only_wins:
+      name: Nur Siege
+      description: Nur benachrichtigen, wenn genau ein Match mit Sieg dazukam.
+      default: false
+      selector:
+        boolean: {}
+
+mode: queued
+max: 10
+
+triggers:
+  - trigger: state
+    entity_id: !input match_event
+
+variables:
+  only_wins: !input only_wins
+  player: >-
+    {% set dev = device_id(trigger.entity_id) %}
+    {{ (device_attr(dev, 'name_by_user') or device_attr(dev, 'name')) if dev else trigger.to_state.name }}
+
+conditions:
+  # Kein Zustand vorher: Start von Home Assistant (wiederhergestelltes Ereignis).
+  # "unavailable" vorher: Neuladen der Integration. In beiden Fällen ist das
+  # Ereignis alt. "unknown" vorher ist dagegen das erste Ereignis überhaupt.
+  - condition: template
+    value_template: >-
+      {{ trigger.from_state is not none
+         and trigger.from_state.state != 'unavailable'
+         and trigger.to_state is not none
+         and trigger.to_state.state not in ['unavailable', 'unknown']
+         and trigger.to_state.attributes.event_type == 'match_finished' }}
+  - condition: template
+    value_template: "{{ not only_wins or trigger.to_state.attributes.result == 'win' }}"
+
+actions:
+  - alias: Benachrichtigung an die App
+    domain: mobile_app
+    type: notify
+    device_id: !input notify_device
+    title: "BF6: {{ player }}"
+    message: >-
+      {% set a = trigger.to_state.attributes %}
+      {% set n = a.matches | int(0) %}
+      {% set ergebnis = {'win': 'Sieg', 'loss': 'Niederlage'}.get(a.result, '') %}
+      {% set kopf = ergebnis if n == 1 and ergebnis else (n ~ ' Matches' if n > 1 else 'Match beendet') %}
+      {{ kopf }}: {{ a.kills if a.kills is not none else '–' }} Kills,
+      {{ a.deaths if a.deaths is not none else '–' }} Tode,
+      K/D {{ a.kd if a.kd is not none else '–' }}

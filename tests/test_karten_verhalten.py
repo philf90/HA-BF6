@@ -114,3 +114,15 @@ def test_index_follows_registry_changes(ergebnis) -> None:
 def test_shared_lists_are_frozen(ergebnis) -> None:
     """Alle Karten teilen die Listen; eine Aenderung wuerde einen Fehler werfen."""
     assert ergebnis["index"]["eingefroren"] is True
+
+
+def test_arsenal_card_shows_gadgets(ergebnis) -> None:
+    """Seit 0.7.0 dritte Gruppe (Review E1), auch ohne Einstellung "show"."""
+    html = ergebnis["karten"]["bf6-arsenal-card"]["normal"]
+    assert '<span class="gname">Gadgets</span>' in html
+    assert "G-Testspieler" in html
+
+
+def test_world_card_shows_queue(ergebnis) -> None:
+    html = ergebnis["karten"]["bf6-world-card"]["normal"]
+    assert '<span class="l">Warte\u00adschlange</span><span class="n">3</span>' in html
