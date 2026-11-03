@@ -9,11 +9,11 @@
     "@philf90"
   ],
   "config_flow": true,
-  "single_config_entry": true,
   "documentation": "https://github.com/philf90/HA-BF6",
   "integration_type": "service",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/philf90/HA-BF6/issues",
   "requirements": [],
+  "single_config_entry": true,
   "version": "0.6.14"
 }

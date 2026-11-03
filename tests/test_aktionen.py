@@ -115,26 +115,17 @@ async def test_get_player_api_error(hass: HomeAssistant, aioclient_mock):
         )
 
 
-async def test_refresh_with_target(hass: HomeAssistant, aioclient_mock):
-    """B22: Zielauswahl wie bei anderen Aktionen (target statt Feld)."""
-    aioclient_mock.get(STATS_URL, json=STATS)
-    await _setup(hass)
-    device = device_of(hass, "1000000002-kills")
-    await hass.services.async_call(
-        DOMAIN, "refresh", target={"device_id": device.id}, blocking=True
-    )
-    queries = [
-        c[1].query["playerid"]
-        for c in aioclient_mock.mock_calls
-        if str(c[1]).startswith(STATS_URL)
-    ]
-    assert queries[2:] == ["1000000002"]
+def test_refresh_uses_device_selector() -> None:
+    """Geraete als Feld mit Geraete-Selektor, nicht als target-Filter.
 
-
-def test_refresh_offers_target_not_field() -> None:
+    hassfest lehnt Geraete-Filter in target ab ("Services do not support device
+    filters on target, use a device selector instead"); ein Versuch in 0.6.14
+    (Review B22) scheiterte daran in der CI.
+    """
     services = yaml.safe_load(SERVICES.read_text(encoding="utf-8"))
-    assert services["refresh"]["target"] == {"device": {"integration": DOMAIN}}
-    assert "fields" not in services["refresh"]
+    assert "target" not in services["refresh"]
+    selector = services["refresh"]["fields"]["device_id"]["selector"]["device"]
+    assert selector == {"integration": DOMAIN, "multiple": True}
 
 
 def test_name_check_lives_in_parsers() -> None:

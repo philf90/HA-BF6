@@ -221,9 +221,7 @@ liefern.
   spart nichts; einzelne Entitäten lassen sich in Home Assistant
   deaktivieren.
 - **`bf6_player.refresh`**: Spieler und Spielwelt sofort abfragen, wahlweise
-  nur bestimmte Geräte über die Zielauswahl (`target`, seit 0.6.14; vorher
-  ein eigenes Feld `device_id`, das weiter funktioniert). Die API cacht
-  Antworten 10 Minuten. Seit 0.6.8
+  nur bestimmte Geräte. Die API cacht Antworten 10 Minuten. Seit 0.6.8
   fasst die Aktion Aufrufe innerhalb von 10 Sekunden zusammen: Der erste
   fragt sofort ab, alle weiteren ergeben zusammen eine Abfrage am Ende der
   10 Sekunden.
@@ -435,13 +433,15 @@ Automatische Tests laufen gegen zwei Versionen von Home Assistant: die
 Mindestversion 2026.2.3 (`pytest-homeassistant-custom-component` 0.13.316,
 Python 3.13) und seit 0.6.9 die aktuelle 2026.10.4 (0.13.375, Python 3.14).
 
-- **0.6.x:** 312 automatische Tests, grün gegen Home Assistant 2026.2.3 und
+- **0.6.x:** 311 automatische Tests, grün gegen Home Assistant 2026.2.3 und
   2026.10.4. 0.6.14: Wartung aus dem Code-Review. Fehlertexte ohne
   Query-String (B23), Actions auf Commits gepinnt mit Dependabot (B18),
   Namensprüfung in `parsers.py` statt verzögertem Import aus dem Dialog
-  (B15), `single_config_entry` im Manifest (B14), `refresh` mit
-  Zielauswahl (B22). Gegenprobe: Fehlertext wie 0.6.13, ohne
-  `single_config_entry` (2 Tests), Feld statt Zielauswahl, verzögerter
+  (B15), `single_config_entry` im Manifest (B14). Die Zielauswahl für
+  `refresh` (B22) scheiterte an hassfest: Geräte-Filter in `target` sind für
+  Aktionen nicht erlaubt, verlangt ist ein Geräte-Selektor, wie ihn
+  `refresh` schon hatte; ein Test hält das jetzt fest. Gegenprobe:
+  Fehlertext wie 0.6.13, ohne `single_config_entry` (2 Tests), verzögerter
   Import, eine Action ungepinnt – jedes Mal schlug der zugehörige Test
   fehl. 0.6.13: Spieler kommen und gehen ohne Neuladen (Dispatcher an
   die drei Plattformen, eigener Coordinator, gestoppt beim Löschen);

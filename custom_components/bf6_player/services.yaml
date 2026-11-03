@@ -1,8 +1,10 @@
 refresh:
-  # Zielauswahl wie bei anderen Aktionen (seit 0.6.14); ohne Ziel alle
-  target:
-    device:
-      integration: bf6_player
+  fields:
+    device_id:
+      selector:
+        device:
+          integration: bf6_player
+          multiple: true
 
 get_player:
   fields:
