@@ -25,6 +25,35 @@ IMAGE_TIMEOUT = 10
 IMAGE_MAX_BYTES = 2 * 1024 * 1024
 
 
+async def lies_bild(
+    resp: aiohttp.ClientResponse, limit: int
+) -> tuple[bytes | None, str]:
+    """Ganze Antwort lesen, hoechstens limit Bytes; (Inhalt, Grund) bei Ablehnung.
+
+    Liest in Bloecken bis zum Ende des Datenstroms. 0.6.11 nutzte
+    resp.content.read(limit + 1); das liefert nur, was gerade im Puffer liegt
+    (gegen den CDN 13.690 bis 23.829 von 258.834 Bytes), und das abgeschnittene
+    PNG blieb im Zwischenspeicher. Stimmt die Laenge nicht mit Content-Length
+    ueberein, gilt das Bild als unvollstaendig.
+    """
+    try:
+        erwartet = int(resp.headers.get("Content-Length", ""))
+    except ValueError:
+        erwartet = None
+    if erwartet is not None and erwartet > limit:
+        return None, f"groesser als {limit} Bytes"
+    inhalt = bytearray()
+    async for block in resp.content.iter_chunked(64 * 1024):
+        inhalt.extend(block)
+        if len(inhalt) > limit:
+            return None, f"groesser als {limit} Bytes"
+    if erwartet is not None and len(inhalt) != erwartet:
+        return None, f"unvollstaendig ({len(inhalt)} von {erwartet} Bytes)"
+    if not inhalt:
+        return None, "leer"
+    return bytes(inhalt), ""
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: Bf6ConfigEntry,
@@ -96,14 +125,12 @@ class Bf6RankImage(Bf6PlayerEntity, ImageEntity):
                         content_type or "ohne Content-Type",
                     )
                     return None
-                inhalt = await resp.content.read(IMAGE_MAX_BYTES + 1)
+                inhalt, grund = await lies_bild(resp, IMAGE_MAX_BYTES)
         except (aiohttp.ClientError, TimeoutError) as err:
             _LOGGER.warning("Rang-Abzeichen nicht geladen: %s", type(err).__name__)
             return None
-        if len(inhalt) > IMAGE_MAX_BYTES:
-            _LOGGER.warning(
-                "Rang-Abzeichen nicht geladen: groesser als %s Bytes", IMAGE_MAX_BYTES
-            )
+        if inhalt is None:
+            _LOGGER.warning("Rang-Abzeichen nicht geladen: %s", grund)
             return None
         self._attr_content_type = content_type
         self._bild = (url, inhalt)

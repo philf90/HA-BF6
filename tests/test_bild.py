@@ -5,16 +5,19 @@ B24), nur Status 200 mit image/*, hoechstens IMAGE_MAX_BYTES, Zwischenspeicher
 je Adresse ohne private Attribute von Home Assistant (Review B11).
 """
 
+import asyncio
 import copy
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
+from aiohttp.streams import StreamReader
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.bf6_player.const import DOMAIN
+from custom_components.bf6_player.image import IMAGE_MAX_BYTES, lies_bild
 
 from .conftest import PROFILE, STATS, main_entry, mock_world, player_subentry
 
@@ -136,3 +139,70 @@ async def test_connection_error(hass: HomeAssistant, aioclient_mock, hass_client
     resp = await _abrufen(hass, hass_client, entity_id)
     assert resp.status == 200
     assert await resp.read() == PNG
+
+
+# --- Lesen in Teilen (0.6.12) -----------------------------------------------
+# Echter aiohttp-StreamReader, der die Antwort wie im Netz in mehreren Teilen
+# bekommt. 0.6.11 las mit content.read(limit + 1) nur den ersten Teil
+# (gegen den CDN 13.690 bis 23.829 von 258.834 Bytes); der Mock oben liefert
+# alles auf einmal und konnte das nicht zeigen.
+
+
+class _Antwort:
+    def __init__(self, teile: list[bytes], content_length: int | None) -> None:
+        self.headers = (
+            {} if content_length is None else {"Content-Length": str(content_length)}
+        )
+        self.content = StreamReader(Mock(), 2**16, loop=asyncio.get_running_loop())
+        self._teile = teile
+
+    async def senden(self) -> None:
+        for teil in self._teile:
+            self.content.feed_data(teil)
+            # Leser kommt zwischen zwei Teilen zum Zug, wie bei echtem Netz
+            for _ in range(3):
+                await asyncio.sleep(0)
+        self.content.feed_eof()
+
+
+async def _lesen(teile, content_length, limit=IMAGE_MAX_BYTES):
+    antwort = _Antwort(teile, content_length)
+    sender = asyncio.create_task(antwort.senden())
+    ergebnis = await lies_bild(antwort, limit)
+    await sender
+    return ergebnis
+
+
+GROSS = bytes(range(256)) * 1012  # 259.072 Bytes, so gross wie das Abzeichen
+TEILE = [GROSS[i : i + 16384] for i in range(0, len(GROSS), 16384)]
+
+
+async def test_reads_whole_image_in_parts() -> None:
+    inhalt, grund = await _lesen(TEILE, len(GROSS))
+    assert grund == ""
+    assert inhalt == GROSS
+
+
+async def test_reads_whole_image_without_length() -> None:
+    inhalt, _ = await _lesen(TEILE, None)
+    assert inhalt == GROSS
+
+
+async def test_incomplete_image_is_rejected() -> None:
+    """Endet der Datenstrom vor Content-Length, kein (abgeschnittenes) Bild."""
+    inhalt, grund = await _lesen(TEILE[:5], len(GROSS))
+    assert inhalt is None
+    assert grund == f"unvollstaendig ({5 * 16384} von {len(GROSS)} Bytes)"
+
+
+async def test_limit_while_reading_and_by_header() -> None:
+    inhalt, grund = await _lesen(TEILE, None, limit=100_000)
+    assert inhalt is None
+    assert grund == "groesser als 100000 Bytes"
+    inhalt, grund = await _lesen([], len(GROSS), limit=100_000)
+    assert inhalt is None
+    assert grund == "groesser als 100000 Bytes"
+
+
+async def test_empty_image_is_rejected() -> None:
+    assert await _lesen([], 0) == (None, "leer")
