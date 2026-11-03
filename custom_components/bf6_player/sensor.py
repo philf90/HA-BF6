@@ -66,6 +66,30 @@ def _rank_attributes(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _ranked(data: dict[str, Any]) -> dict[str, Any] | None:
+    """Erster Eintrag aus competitiveRanks.
+
+    Am 03.11.2026 beim Beispielkonto der API-Dokumentation genau einer
+    (Saison "CompetitiveSeason5", Modus "Redsec Quads", "Unranked"). Kommen mehrere, steht der erste im Zustand und alle im
+    Attribut "ranked".
+    """
+    ranked = (data.get("profile") or {}).get("ranked") or []
+    return ranked[0] if ranked else None
+
+
+def _ranked_rank(data: dict[str, Any]) -> str | None:
+    return (_ranked(data) or {}).get("rank")
+
+
+def _ranked_attributes(data: dict[str, Any]) -> dict[str, Any]:
+    first = _ranked(data) or {}
+    return {
+        "season": first.get("season"),
+        "mode": first.get("mode"),
+        "ranked": (data.get("profile") or {}).get("ranked") or [],
+    }
+
+
 def _count(
     key: str,
     value_key: str | None = None,
@@ -134,6 +158,22 @@ SENSORS: tuple[Bf6SensorDescription, ...] = (
         value=_profile("rank"),
         attributes=_rank_attributes,
     ),
+    # Seit 0.7.0 eigene Sensoren (Review E2); die Attribute am Rang bleiben
+    Bf6SensorDescription(
+        key="dog_tags",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        value=_profile("dog_tags"),
+    ),
+    Bf6SensorDescription(
+        key="badges",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        value=_profile("badges"),
+    ),
+    Bf6SensorDescription(
+        key="ranked_rank",
+        value=_ranked_rank,
+        attributes=_ranked_attributes,
+    ),
     Bf6SensorDescription(
         key="favorite_class",
         value=_stat("favorite_class"),
@@ -144,6 +184,10 @@ SENSORS: tuple[Bf6SensorDescription, ...] = (
     ),
     Bf6SensorDescription(
         key="top_vehicle", value=_top("vehicles"), attributes=_top_list("vehicles")
+    ),
+    # Seit 0.7.0 (Review E1, B20): Gadgets waren ausgewertet, aber ungenutzt
+    Bf6SensorDescription(
+        key="top_gadget", value=_top("gadgets"), attributes=_top_list("gadgets")
     ),
 )
 
@@ -252,6 +296,12 @@ WORLD_SENSORS: tuple[Bf6SensorDescription, ...] = (
         key="portal_players",
         state_class=SensorStateClass.MEASUREMENT,
         value=_portal("players"),
+    ),
+    # Seit 0.7.0 (Review E1, B20)
+    Bf6SensorDescription(
+        key="portal_queue",
+        state_class=SensorStateClass.MEASUREMENT,
+        value=_portal("queue"),
     ),
 )
 

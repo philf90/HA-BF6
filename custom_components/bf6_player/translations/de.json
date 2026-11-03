@@ -119,6 +119,26 @@
           }
         }
       },
+      "dog_tags": {
+        "name": "Dog Tags"
+      },
+      "badges": {
+        "name": "Abzeichen"
+      },
+      "ranked_rank": {
+        "name": "Ranked-Rang",
+        "state_attributes": {
+          "season": {
+            "name": "Saison"
+          },
+          "mode": {
+            "name": "Modus"
+          },
+          "ranked": {
+            "name": "Ranked"
+          }
+        }
+      },
       "favorite_class": {
         "name": "Meistgespielte Klasse",
         "state_attributes": {
@@ -137,6 +157,14 @@
       },
       "top_vehicle": {
         "name": "Top-Fahrzeug",
+        "state_attributes": {
+          "top": {
+            "name": "Top 5"
+          }
+        }
+      },
+      "top_gadget": {
+        "name": "Top-Gadget",
         "state_attributes": {
           "top": {
             "name": "Top 5"
@@ -177,6 +205,9 @@
       },
       "portal_players": {
         "name": "Portal-Spieler"
+      },
+      "portal_queue": {
+        "name": "Portal-Warteschlange"
       }
     },
     "image": {

@@ -11,13 +11,14 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.6.14.
+Version 0.7.0.
 
-> **Stand:** Version 0.6.14: Jeder Spieler ist ein Gerät mit 20 Sensoren,
+> **Stand:** Version 0.7.0: Jeder Spieler ist ein Gerät mit 24 Sensoren,
 > Rang-Abzeichen und den Ereignissen „Match beendet“ und „Rang gestiegen“
 > (siehe [Entitäten je Spieler](#entitäten-je-spieler)); dazu das Gerät
-> „BF6-Spielwelt“, Aktionen, Optionen, Diagnose, Reparaturhinweis und acht
-> [Dashboard-Karten](#dashboard-karten) im Nachtblau-Stil. Den Plan zeigt
+> „BF6-Spielwelt“, Aktionen, Optionen, Diagnose, Reparaturhinweis, acht
+> [Dashboard-Karten](#dashboard-karten) im Nachtblau-Stil und zwei
+> [Blueprints](#blueprints) für Benachrichtigungen. Den Plan zeigt
 > die Recherche in [`docs/bf6-api-recherche.html`](docs/bf6-api-recherche.html).
 
 <p align="center">
@@ -118,7 +119,11 @@ der Installation. Sinkt ein Zähler, verwirft die Integration diese Abfrage
 einmal und übernimmt den Rückgang erst, wenn die nächste Abfrage ihn
 bestätigt (seit 0.6.9): Home Assistant zählt einen Rückgang um mehr als 10 %
 als neuen Zählerzyklus, ein einmaliger Ausreißer der API würde die Summe der
-Langzeitstatistik sonst um den ganzen Zählerstand erhöhen.
+Langzeitstatistik sonst um den ganzen Zählerstand erhöhen. Dog Tags und
+Abzeichen (seit 0.7.0) behandelt die Integration ebenso: Ein Rückgang gilt
+erst, wenn die nächste Profilabfrage ihn bestätigt; bis dahin bleibt der
+alte Wert. Verglichen wird mit dem letzten bekannten Wert, auch über ein
+privates Profil hinweg und nach einem Neustart mit dem gespeicherten.
 
 | Wert | Typ | Takt | Quelle (Endpunkt, Feld) |
 |---|---|---|---|
@@ -129,8 +134,10 @@ Langzeitstatistik sonst um den ganzen Zählerstand erhöhen.
 | K/D, Kills pro Minute | Sensoren | 15 min | selbst gerechnet: Kills ÷ Tode, Kills ÷ Spielminuten |
 | Siegquote, Treffergenauigkeit, Headshot-Quote, Kills gegen Menschen | Sensoren in % | 15 min | selbst gerechnet: Siege ÷ Matches, Treffer ÷ Schüsse, Headshots ÷ Kills, `dividedKills.human` ÷ Kills |
 | Rang (Rangname, Dog Tags, Abzeichen, Rang-Bild, Ranked-Rang als Attribute) | Sensor | 60 min | `/bf6/profile/`, `playerCard.rank`, `rankName`, `totalDogTags`, `badgeSummary.totalBadges`, `playerCard.rankImage.large`, `competitiveRanks`; bei privaten Profilen nur Rang, Rangname und Rang-Bild (seit 0.6.5) |
+| Dog Tags, Abzeichen (seit 0.7.0) | Sensoren, Zähler | 60 min | `/bf6/profile/`, `totalDogTags.intValue`, `badgeSummary.totalBadges`; bei privaten Profilen unbekannt |
+| Ranked-Rang (seit 0.7.0; Saison, Modus und alle Einträge als Attribute) | Sensor (Text) | 60 min | `/bf6/profile/`, erster Eintrag von `competitiveRanks[]` (`rankName`, `type`, `modeName`) |
 | Meistgespielte Klasse (seit 0.6.0 alle Klassen als Attribut `classes`) | Sensor (Text) | 15 min | `classes[]` mit der längsten Spielzeit |
-| Top-Waffe, Top-Fahrzeug (Top 5 als Attribut `top`) | Sensoren (Text) | 15 min | `weapons[]`, `vehicles[]` nach Kills |
+| Top-Waffe, Top-Fahrzeug, Top-Gadget (seit 0.7.0) (Top 5 als Attribut `top`) | Sensoren (Text) | 15 min | `weapons[]`, `vehicles[]`, `gadgets[]` nach Kills; Gadgets ohne Kill (Leiter, Munitionskiste …) fehlen |
 | Plattform | Sensor (Diagnose), Symbol je Plattform | gespeichert | aus dem Dialog „Spieler hinzufügen“ |
 | Rang-Abzeichen | Bild (seit 0.5.0) | 60 min | `/bf6/profile/`, `playerCard.rankImage.large` |
 | Match beendet | Ereignis (seit 0.5.0) | 15 min | Zuwachs von `matchesPlayed` und der Zähler zwischen zwei Abfragen |
@@ -151,6 +158,11 @@ Langzeitstatistik sonst um den ganzen Zählerstand erhöhen.
 - **Nicht verfügbar** sind die Entitäten eines Spielers, wenn die API nicht
   antwortet oder zu seinem Konto keine Statistik liefert (`hasResults:
   false`). Die Plattform bleibt sichtbar.
+- **Ranked-Rang:** Beim Beispielkonto der API-Dokumentation lieferte die API
+  am 03.11.2026 genau einen Eintrag (Saison `CompetitiveSeason5`, Modus
+  „Redsec Quads“, „Unranked“). Kommen mehrere, steht der erste im Zustand
+  und alle im Attribut `ranked`. Die Rangnamen kommen von der API, nicht
+  übersetzt.
 - **Entity-IDs** entstehen aus dem Spielernamen und dem Namen des Sensors in
   der Sprache der Oberfläche, z. B. `sensor.testspieler_kills`.
 
@@ -183,12 +195,21 @@ nennen seit 0.6.13 in `since` die Zeit des verglichenen Stands.
 - Scheitert eine Abfrage, wiederholt sich kein Ereignis.
 - Ein Ereignis kommt frühestens mit der nächsten Abfrage nach dem Match,
   bei 15 Minuten Takt und 10 Minuten Cache der API also mit Verzögerung.
+- **Für Automationen** (seit 0.7.0): Nach einem Neustart zeigt die
+  Ereignis-Entität zuerst das wiederhergestellte letzte Ereignis (Wechsel
+  ohne Zustand davor), nach einem Neuladen ebenso (Wechsel von
+  `unavailable`). Ein nachgeholtes Ereignis kommt erst danach, als eigener
+  Wechsel. Eine Automation mit Zustands-Trigger verwirft deshalb Wechsel
+  ohne Zustand davor und von `unavailable`, nicht aber von `unknown` (das
+  erste Ereignis überhaupt); so machen es die [Blueprints](#blueprints).
+  Bis 0.6.13 war ein nachgeholtes Ereignis selbst der erste Zustand und
+  davon nicht zu unterscheiden.
 
 ### Nicht in der Datenbank
 
 Diese Attribute stehen am Sensor, gehen aber nicht in den Verlauf (Listen und
-Adressen, 16-KB-Grenze des Recorders): `top` (Top-Waffe, Top-Fahrzeug),
-`ranked` und `rank_image` (Rang), `maps` und `modes` (Matches) sowie
+Adressen, 16-KB-Grenze des Recorders): `top` (Top-Waffe, Top-Fahrzeug,
+Top-Gadget), `ranked` (Rang, Ranked-Rang) und `rank_image` (Rang), `maps` und `modes` (Matches) sowie
 `classes` (Meistgespielte Klasse).
 
 Die Listen `maps`, `modes` und `classes` sind für die Karten da (seit 0.6.0).
@@ -205,6 +226,7 @@ Seit 0.5.0, eines je Eintrag, auch ohne Spieler.
 |---|---|---|---|
 | Saisonende (Saison, Saisonbeginn, Battle Pass als Attribute) | Zeitstempel | 6 h | `/bf6/gameevents/`, aktives Ereignis `Season<n>`, `validUntil.end.value`; Battle Pass aus `BP<n>` |
 | Portal-Server, Portal-Spieler | Sensoren | 15 min | `/bf6/status/`, `regions.ALL.amounts.serverAmount`, `soldierAmount` |
+| Portal-Warteschlange (seit 0.7.0) | Sensor | 15 min | `/bf6/status/`, `regions.ALL.amounts.queueAmount` |
 
 Die Zahlen zählen nur Portal-Server, nicht die offiziellen Playlists (laut
 Beschreibung des Endpunkts). Scheitert eine der beiden Abfragen, bleibt ihr
@@ -250,12 +272,12 @@ Kartenwähler stehen sie unter „Benutzerdefiniert“ als „BF6 …“.
 | Karte | Typ | Inhalt | Optionen |
 |---|---|---|---|
 | BF6 Spieler | `custom:bf6-player-card` | Rang-Abzeichen, Name, Plattform mit Symbol, Rang; Kills, K/D, KPM, Matches, Siegquote, Spielzeit; Balken Siege/Niederlagen/sonstige; Treffergenauigkeit, Headshot-Quote, Kills gegen Menschen; Klasse, Waffe, Fahrzeug | `entity` |
-| BF6 Arsenal | `custom:bf6-arsenal-card` | Top-Waffen mit Bild, Kills, Genauigkeit, Headshot-Quote, KPM; Top-Fahrzeuge mit Kills und Zeit | `entity`, `limit` (1–5), `show` (`weapons`, `vehicles`) |
+| BF6 Arsenal | `custom:bf6-arsenal-card` | Top-Waffen mit Bild, Kills, Genauigkeit, Headshot-Quote, KPM; Top-Fahrzeuge mit Kills und Zeit; seit 0.7.0 Top-Gadgets mit Kills und Typ | `entity`, `limit` (1–5), `show` (`weapons`, `vehicles`, `gadgets`; Vorgabe alle drei) |
 | BF6 Klassen | `custom:bf6-classes-card` | Anteil der Klassen an der Spielzeit, je Klasse Stunden, K/D, KPM, Kills | `entity` |
 | BF6 Karten | `custom:bf6-maps-card` | Siegquote je Karte mit Siegen, Niederlagen, Matches und zweitem Namen | `entity`, `min_matches` (Vorgabe 1), `limit` (Vorgabe 10), `sort` (`matches` oder `win_rate`) |
 | BF6 Modi | `custom:bf6-modes-card` | Matches je Modus, Siegquote, K/D, Kills | `entity`, `limit` (Vorgabe 8) |
 | BF6 Squad | `custom:bf6-squad-card` | mehrere Spieler: K/D, KPM, Siegquote, darunter Kills, Matches, Spielzeit; der beste Wert je Spalte in Rosé | `entities` (leer: alle Spieler), `title` |
-| BF6 Spielwelt | `custom:bf6-world-card` | Saison und Battle Pass, Restzeit, vergangener Anteil, Beginn und Ende; Portal-Server und -Spieler | – |
+| BF6 Spielwelt | `custom:bf6-world-card` | Saison und Battle Pass, Restzeit, vergangener Anteil, Beginn und Ende; Portal-Server, -Spieler und seit 0.7.0 die Warteschlange | – |
 | BF6 Verlauf | `custom:bf6-history-card` | Langzeitstatistik eines Werts: Quoten als Linie des Mittelwerts, Zähler als Balken des Zuwachses je Zeitraum | `entity`, `metric` (`kd`, `kpm`, `win_rate`, `accuracy`, `headshot_rate`, `rank`, `kills`, `matches`, `wins`, `xp`, `time_played`), `period` (`day`, `week`, `month`), `days` (7–365, Vorgabe 30) |
 
 ```yaml
@@ -307,6 +329,33 @@ sort: win_rate
   bleiben leer. Werte stehen beim Überfahren mit der
   Maus an den Balken bzw. Punkten, Summe bzw. kleinster und größter Wert als
   Text darunter.
+
+## Blueprints
+
+Seit 0.7.0. Zwei Automations-Blueprints machen die Ereignisse ohne eigenes
+YAML nutzbar. Sie liegen im Repository unter
+[`blueprints/automation/bf6_player/`](blueprints/automation/bf6_player/);
+HACS installiert nur die Integration, die Blueprints kommen per Import:
+
+| Blueprint | Import | Nachricht (Beispiel) | Eingaben |
+|---|---|---|---|
+| BF6: Match beendet → Benachrichtigung | [![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fphilf90%2FHA-BF6%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fbf6_player%2Fbf6_match_finished_notify.yaml) | „Sieg: 20 Kills, 10 Tode, K/D 2.0“, bei mehreren Matches „2 Matches: …“ | Ereignis-Entitäten „Match beendet“ (mehrere möglich), Gerät mit der Home-Assistant-App, „Nur Siege“ |
+| BF6: Rang gestiegen → Benachrichtigung | [![Blueprint importieren](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fphilf90%2FHA-BF6%2Fblob%2Fmain%2Fblueprints%2Fautomation%2Fbf6_player%2Fbf6_rank_up_notify.yaml) | „Rang 43 (Rangname) erreicht, vorher Rang 42“ | Ereignis-Entitäten „Rang gestiegen“, Gerät mit der Home-Assistant-App |
+
+- **Titel** der Nachricht: „BF6: <Spieler>“ (Gerätename, auch umbenannt).
+- **Kein Alarm für alte Ereignisse:** Beide verwerfen den Zustand nach einem
+  Neustart oder Neuladen; ein nachgeholtes Ereignis (Match während des
+  Neustarts) melden sie (siehe [Ereignisse](#ereignisse-seit-050)).
+- **Falsche Entität:** Wird beim Match-Blueprint die Entität „Rang
+  gestiegen“ gewählt (oder umgekehrt), kommt keine Nachricht; beide prüfen
+  den Ereignistyp.
+- **Benachrichtigung** über die Geräteaktion `mobile_app` wie im Blueprint
+  „Zone Notification“ von Home Assistant. Für andere Wege (Telegram, Alexa
+  …) eine eigene Automation mit denselben Bedingungen anlegen.
+- **Geprüft:** Schema mit dem Blueprint-Modul von Home Assistant; Trigger,
+  Bedingungen und Texte in einer Testkopie, in der statt der App-Aktion ein
+  Ereignis feuert (die Integration `mobile_app` lässt sich in den Tests
+  nicht laden). Die App-Aktion selbst ist damit nicht getestet.
 
 ## Abfragen und Auswertung
 
@@ -433,6 +482,22 @@ Automatische Tests laufen gegen zwei Versionen von Home Assistant: die
 Mindestversion 2026.2.3 (`pytest-homeassistant-custom-component` 0.13.316,
 Python 3.13) und seit 0.6.9 die aktuelle 2026.10.4 (0.13.375, Python 3.14).
 
+- **0.7.x:** 333 automatische Tests, grün gegen Home Assistant 2026.2.3 und
+  2026.10.4. 0.7.0: Erweiterungen E1, E2 und E4 aus dem Code-Review.
+  Top-Gadget, Portal-Warteschlange (E1, damit B20), Dog Tags, Abzeichen und
+  Ranked-Rang als eigene Sensoren (E2) mit Rückgangsschutz für Dog Tags und
+  Abzeichen (auch gegen den gespeicherten Stand), zwei Blueprints (E4);
+  nachgeholte Ereignisse erst nach dem ersten Zustand der Ereignis-Entität.
+  22 neue Tests. Gegenprobe, jede Maßnahme einzeln zurückgenommen:
+  Ereignis sofort beim Anlegen wie 0.6.13 (3 Tests schlagen fehl), ohne
+  Rückgangsschutz (2), Merker nicht zurückgesetzt (1), privates Profil
+  löscht den letzten Wert (1), Stand ohne Dog Tags und Abzeichen
+  gespeichert (1) bzw. nicht gelesen (1), Blueprint ohne Prüfung auf
+  fehlenden Zustand (Match 1, Rang 1), auf `unavailable` (1), auf den
+  Ereignistyp (1), „Nur Siege“ ignoriert (1), Top-Gadget aus der falschen
+  Liste (1), Arsenal-Karte ohne Gadgets (1), Spielwelt-Karte ohne
+  Warteschlange (1). Karten in Chromium bei 360 und 500 px: ohne Fehler,
+  ohne Überlauf, nachdem „Warteschlange“ einen weichen Trennstrich bekam.
 - **0.6.x:** 311 automatische Tests, grün gegen Home Assistant 2026.2.3 und
   2026.10.4. 0.6.14: Wartung aus dem Code-Review. Fehlertexte ohne
   Query-String (B23), Actions auf Commits gepinnt mit Dependabot (B18),

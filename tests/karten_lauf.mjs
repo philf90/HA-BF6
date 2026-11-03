@@ -32,9 +32,9 @@ const SPIELER_KEYS = [
   "kills", "deaths", "assists", "revives", "matches", "wins", "losses", "xp",
   "time_played", "kd", "kpm", "win_rate", "accuracy", "headshot_rate",
   "human_kill_rate", "rank", "favorite_class", "top_weapon", "top_vehicle",
-  "platform", "match_finished", "rank_up", "rank_badge",
+  "top_gadget", "dog_tags", "badges", "ranked_rank", "platform", "match_finished", "rank_up", "rank_badge",
 ];
-const WELT_KEYS = ["season_end", "portal_servers", "portal_players"];
+const WELT_KEYS = ["season_end", "portal_servers", "portal_players", "portal_queue"];
 
 function entities() {
   const ergebnis = {};
@@ -76,10 +76,15 @@ function hassMit(text, klassenSekunden) {
     }),
     st("top_weapon", text, { top: liste({}) }),
     st("top_vehicle", text, { top: liste({}) }),
+    // Seit 0.7.0: Gadgets nur mit Name, Typ, Kills und Bild
+    st("top_gadget", `G-${text}`, { top: [{ name: `G-${text}`, type: text, kills: 12, image: null }] }),
+    st("dog_tags", 12), st("badges", 7),
+    st("ranked_rank", text, { season: text, mode: text, ranked: [{ season: text, mode: text, rank: text }] }),
     st("platform", "steam"),
     ["sensor.welt_season_end", { state: "2027-01-19T11:59:00+00:00", attributes: { season: 5, battle_pass: 5, season_start: "2026-10-13T12:00:00+00:00" } }],
     ["sensor.welt_portal_servers", { state: "1000", attributes: {} }],
     ["sensor.welt_portal_players", { state: "500", attributes: {} }],
+    ["sensor.welt_portal_queue", { state: "3", attributes: {} }],
   ]);
   return {
     entities: entities(),

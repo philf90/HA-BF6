@@ -131,6 +131,11 @@ MATCH_COUNTERS = (
     "seconds_played",
 )
 
+# Zaehler aus dem Profil (seit 0.7.0 eigene Sensoren, total_increasing): Ein
+# Rueckgang gilt erst, wenn die naechste Profilabfrage ihn bestaetigt (wie
+# MATCH_COUNTERS); der letzte Stand steht auch in der Vergleichsbasis.
+PROFILE_COUNTERS = ("dog_tags", "badges")
+
 # Signal: neuer Spieler ohne Neuladen des Eintrags (seit 0.6.13);
 # Platzhalter: entry_id
 SIGNAL_NEW_PLAYER = f"{DOMAIN}_new_player_{{}}"

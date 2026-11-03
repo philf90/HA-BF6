@@ -49,6 +49,15 @@
       "rank": {
         "default": "mdi:chevron-triple-up"
       },
+      "dog_tags": {
+        "default": "mdi:tag-multiple"
+      },
+      "badges": {
+        "default": "mdi:medal"
+      },
+      "ranked_rank": {
+        "default": "mdi:podium"
+      },
       "favorite_class": {
         "default": "mdi:account-tie"
       },
@@ -57,6 +66,9 @@
       },
       "top_vehicle": {
         "default": "mdi:tank"
+      },
+      "top_gadget": {
+        "default": "mdi:bomb"
       },
       "platform": {
         "default": "mdi:gamepad-variant",
@@ -79,6 +91,9 @@
       },
       "portal_players": {
         "default": "mdi:account-multiple"
+      },
+      "portal_queue": {
+        "default": "mdi:human-queue"
       }
     },
     "image": {

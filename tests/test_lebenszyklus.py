@@ -217,9 +217,12 @@ async def test_baseline_saved(
     assert gespeichert["stats"]["matches"] == 50
     assert gespeichert["stats"]["kills"] == 1000
     assert gespeichert["rank"] == 42
+    # Seit 0.7.0 auch Dog Tags und Abzeichen (Rueckgangsschutz nach dem Start)
+    assert gespeichert["dog_tags"] == 12
+    assert gespeichert["badges"] == 7
     assert gespeichert["at"]
     # Nur Zahlen und Zeit, keine Namen oder IDs des Spielers
-    assert set(gespeichert) == {"stats", "rank", "at"}
+    assert set(gespeichert) == {"stats", "rank", "dog_tags", "badges", "at"}
 
 
 async def test_rank_kept_when_profile_fails(
