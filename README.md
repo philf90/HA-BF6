@@ -11,9 +11,9 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.6.13.
+Version 0.6.14.
 
-> **Stand:** Version 0.6.13: Jeder Spieler ist ein Gerät mit 20 Sensoren,
+> **Stand:** Version 0.6.14: Jeder Spieler ist ein Gerät mit 20 Sensoren,
 > Rang-Abzeichen und den Ereignissen „Match beendet“ und „Rang gestiegen“
 > (siehe [Entitäten je Spieler](#entitäten-je-spieler)); dazu das Gerät
 > „BF6-Spielwelt“, Aktionen, Optionen, Diagnose, Reparaturhinweis und acht
@@ -410,6 +410,10 @@ und `'` ersetzt, bevor er in HTML landet. Bilder zeigen die Karten nur von
 enthielte. Geprüft in Chromium mit dem Namen `<img src=x
 onerror=alert(1)>` und einer Waffe `<script>alert(1)</script>`: beide als
 Text sichtbar, kein Skript, kein fremdes Bild. Namen erscheinen nicht im Log.
+Fehlertexte von aiohttp übernimmt die Integration seit 0.6.14 ohne
+Query-String: Manche nennen die ganze Adresse, und darin stehen Persona- und
+Nucleus-ID bzw. bei der Suche der Spielername. Bis 0.6.13 konnten diese so
+ins Log und in `last_exception` der Diagnose gelangen.
 Zahlen aus Attributen, die in ein HTML-Attribut gehen (z. B. Balkenbreiten),
 sind immer das Ergebnis einer Rechnung oder von `Number()`; bis 0.6.9 setzte
 die Klassen-Karte die Spielzeit ungeprüft in `style="flex:…"`. Seit 0.6.10
@@ -429,8 +433,17 @@ Automatische Tests laufen gegen zwei Versionen von Home Assistant: die
 Mindestversion 2026.2.3 (`pytest-homeassistant-custom-component` 0.13.316,
 Python 3.13) und seit 0.6.9 die aktuelle 2026.10.4 (0.13.375, Python 3.14).
 
-- **0.6.x:** 305 automatische Tests, grün gegen Home Assistant 2026.2.3 und
-  2026.10.4. 0.6.13: Spieler kommen und gehen ohne Neuladen (Dispatcher an
+- **0.6.x:** 311 automatische Tests, grün gegen Home Assistant 2026.2.3 und
+  2026.10.4. 0.6.14: Wartung aus dem Code-Review. Fehlertexte ohne
+  Query-String (B23), Actions auf Commits gepinnt mit Dependabot (B18),
+  Namensprüfung in `parsers.py` statt verzögertem Import aus dem Dialog
+  (B15), `single_config_entry` im Manifest (B14). Die Zielauswahl für
+  `refresh` (B22) scheiterte an hassfest: Geräte-Filter in `target` sind für
+  Aktionen nicht erlaubt, verlangt ist ein Geräte-Selektor, wie ihn
+  `refresh` schon hatte; ein Test hält das jetzt fest. Gegenprobe:
+  Fehlertext wie 0.6.13, ohne `single_config_entry` (2 Tests), verzögerter
+  Import, eine Action ungepinnt – jedes Mal schlug der zugehörige Test
+  fehl. 0.6.13: Spieler kommen und gehen ohne Neuladen (Dispatcher an
   die drei Plattformen, eigener Coordinator, gestoppt beim Löschen);
   gespeicherte Vergleichsbasis für die Ereignisse (`Store`, 30 s
   Verzögerung beim Schreiben, sofort beim Entladen, damit ein Neuladen kein
@@ -675,7 +688,11 @@ pip install pytest-homeassistant-custom-component==0.13.375
 ```
 
 Dieselben Schritte laufen bei jedem Push auf `main` und jedem Pull Request im
-Workflow „Pruefung“, zusammen mit hassfest und der HACS-Prüfung.
+Workflow „Pruefung“, zusammen mit hassfest und der HACS-Prüfung. Alle Actions
+sind seit 0.6.14 auf Commits gepinnt, Dependabot (`.github/dependabot.yml`)
+hält sie aktuell. hassfest und die HACS-Prüfung laden dabei ihr Docker-Image
+weiter beweglich, damit sie gegen die aktuellen Regeln prüfen; beide Jobs
+laufen nur mit Leserechten und ohne Geheimnisse.
 
 `tests/test_karten_verhalten.py` braucht Node.js (seit 0.6.10): Es führt die
 Karten über `tests/karten_lauf.mjs` aus. Fehlt Node.js, überspringt pytest

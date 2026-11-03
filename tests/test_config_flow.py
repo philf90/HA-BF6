@@ -24,9 +24,12 @@ async def test_create_main_entry(hass: HomeAssistant) -> None:
 
 
 async def test_only_one_main_entry(hass: HomeAssistant) -> None:
+    """Seit 0.6.14 ueber "single_config_entry" im Manifest (B14): Home
+    Assistant bricht selbst ab, mit eigenem Text."""
     main_entry().add_to_hass(hass)
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
     assert result["type"] is FlowResultType.ABORT
-    assert result["reason"] == "already_configured"
+    assert result["reason"] == "single_instance_allowed"
+    assert result["translation_domain"] == "homeassistant"

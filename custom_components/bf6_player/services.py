@@ -22,6 +22,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from . import parsers
 from .api import GametoolsClient, GametoolsError
 from .const import CONF_NAME, DOMAIN, NAME_MAX, PLATFORM_NAMES, SEARCH_LIMIT
+from .parsers import valid_name
 
 SERVICE_REFRESH = "refresh"
 SERVICE_GET_PLAYER = "get_player"
@@ -107,8 +108,6 @@ async def _async_refresh(call: ServiceCall) -> None:
 
 async def _async_get_player(call: ServiceCall) -> ServiceResponse:
     """Konten zu einem Namen nachschlagen, ohne etwas anzulegen."""
-    from .config_flow import valid_name
-
     name = call.data[CONF_NAME].strip()
     if not valid_name(name):
         raise ServiceValidationError(

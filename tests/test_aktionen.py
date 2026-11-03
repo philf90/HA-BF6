@@ -1,6 +1,9 @@
 """Tests fuer die Aktionen bf6_player.refresh und bf6_player.get_player (0.5.0)."""
 
+from pathlib import Path
+
 import pytest
+import yaml
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
@@ -8,6 +11,7 @@ from custom_components.bf6_player.const import DOMAIN
 
 from .conftest import SEARCH, STATS, device_of, main_entry, player_subentry
 
+SERVICES = Path(__file__).parents[1] / "custom_components" / DOMAIN / "services.yaml"
 BASE = "https://api.gametools.network"
 STATS_URL = f"{BASE}/bf6/stats/"
 SEARCH_URL = f"{BASE}/bf6/player/"
@@ -109,3 +113,26 @@ async def test_get_player_api_error(hass: HomeAssistant, aioclient_mock):
             blocking=True,
             return_response=True,
         )
+
+
+def test_refresh_uses_device_selector() -> None:
+    """Geraete als Feld mit Geraete-Selektor, nicht als target-Filter.
+
+    hassfest lehnt Geraete-Filter in target ab ("Services do not support device
+    filters on target, use a device selector instead"); ein Versuch in 0.6.14
+    (Review B22) scheiterte daran in der CI.
+    """
+    services = yaml.safe_load(SERVICES.read_text(encoding="utf-8"))
+    assert "target" not in services["refresh"]
+    selector = services["refresh"]["fields"]["device_id"]["selector"]["device"]
+    assert selector == {"integration": DOMAIN, "multiple": True}
+
+
+def test_name_check_lives_in_parsers() -> None:
+    """B15: Aktion und Dialog nutzen dieselbe Pruefung aus parsers.py, ohne
+    verzoegerten Import aus config_flow."""
+    from custom_components.bf6_player import config_flow, parsers, services
+
+    assert services.valid_name is parsers.valid_name
+    assert config_flow.valid_name is parsers.valid_name
+    assert "from .config_flow" not in Path(services.__file__).read_text()

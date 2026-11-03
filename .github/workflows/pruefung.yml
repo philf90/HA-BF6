@@ -22,9 +22,9 @@ jobs:
     name: Ruff und Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.13"
 
@@ -43,9 +43,9 @@ jobs:
     name: Tests mit aktuellem Home Assistant
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.14"
 
@@ -55,18 +55,24 @@ jobs:
       - name: Tests
         run: python -m pytest tests -q
 
+  # Actions sind auf Commits gepinnt (seit 0.6.14), Dependabot haelt sie aktuell.
+  # hassfest und HACS laden dabei ihr Docker-Image weiter beweglich
+  # (ghcr.io/home-assistant/hassfest, ghcr.io/hacs/action:main): Sie sollen
+  # gegen die aktuellen Regeln pruefen, laufen nur mit Leserechten und ohne
+  # Geheimnisse, und ein auf Digest gepinntes Image koennte Dependabot nicht
+  # aktualisieren.
   hassfest:
     name: hassfest
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: home-assistant/actions/hassfest@master
+      - uses: home-assistant/actions/hassfest@86d4564712fa02543c808e3a693dd04f9d3f8361 # master am 03.11.2026
 
   hacs:
     name: HACS
     runs-on: ubuntu-latest
     steps:
-      - uses: hacs/action@main
+      - uses: hacs/action@1ebf01c408f29afcb6406bd431bc98fd8cbb15aa # main am 03.11.2026
         with:
           category: integration
