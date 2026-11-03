@@ -7,7 +7,6 @@ man das Konto aus der Trefferliste und es werden nur die IDs gespeichert.
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 import voluptuous as vol
@@ -54,27 +53,9 @@ from .const import (
     SUBENTRY_PLAYER,
     player_title,
 )
+from .parsers import markdown_text, valid_name
 
 NAME_SCHEMA = vol.Schema({vol.Required(CONF_NAME): TextSelector()})
-
-# Zeichen mit Bedeutung in Markdown. Das Frontend zeigt Beschreibungen als
-# Markdown (marked, danach filterXSS); ein Name wie "[x](https://...)" wuerde
-# sonst zum Link.
-_MARKDOWN = re.compile(r"([\\`*_{}\[\]()#+\-.!|<>~])")
-
-
-def markdown_text(text: str) -> str:
-    """Text fuer einen Platzhalter in einer Beschreibung, ohne Markdown-Wirkung."""
-    return _MARKDOWN.sub(r"\\\1", text)
-
-
-def valid_name(name: str) -> bool:
-    """Eingegebener Name: nicht leer, hoechstens NAME_MAX Zeichen, keine
-    Steuer- oder Richtungszeichen. Sonderzeichen sind erlaubt; die Abfrage
-    kodiert sie (aiohttp/yarl), es gibt keinen anderen Weg des Namens nach
-    aussen.
-    """
-    return 0 < len(name) <= NAME_MAX and not any(map(parsers.unsafe_char, name))
 
 
 class Bf6PlayerConfigFlow(ConfigFlow, domain=DOMAIN):

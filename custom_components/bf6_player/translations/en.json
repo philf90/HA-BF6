@@ -250,13 +250,7 @@
   "services": {
     "refresh": {
       "name": "Refresh",
-      "description": "Asks the gametools API now. Answers are cached for 10 minutes, so values may not change right away.",
-      "fields": {
-        "device_id": {
-          "name": "Devices",
-          "description": "Players or the BF6 world to refresh; all if empty."
-        }
-      }
+      "description": "Asks the gametools API now. Answers are cached for 10 minutes, so values may not change right away. Without a target, all players and the BF6 world."
     },
     "get_player": {
       "name": "Look up player",

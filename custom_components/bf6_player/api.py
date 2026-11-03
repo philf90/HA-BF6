@@ -9,6 +9,7 @@ Antworten cacht Cloudflare 600 s.
 from __future__ import annotations
 
 import asyncio
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
@@ -17,6 +18,21 @@ from typing import Any
 import aiohttp
 
 from .const import API_BASE, PARALLEL_REQUESTS, REQUEST_TIMEOUT
+
+# Query-String einer Adresse im Fehlertext: enthaelt Persona- und Nucleus-ID
+# (Statistik, Profil) oder den Spielernamen (Suche)
+_QUERY = re.compile(r"\?[^\s'\"]*")
+
+
+def fehlertext(err: BaseException) -> str:
+    """Typ und Text einer aiohttp-Ausnahme, ohne Query-Strings (seit 0.6.14).
+
+    Ausnahmen mit request_info (z. B. TooManyRedirects) nennen die ganze
+    Adresse samt playerid und nucleus_id; bis 0.6.13 landete sie so im Log
+    und in last_exception der Diagnose, die die IDs sonst schwaerzt
+    (Review B23).
+    """
+    return _QUERY.sub("?…", f"{type(err).__name__} {err}").strip()
 
 
 class GametoolsError(Exception):
@@ -120,7 +136,7 @@ class GametoolsClient:
                 f"{path}: keine Antwort nach {REQUEST_TIMEOUT} s"
             ) from err
         except aiohttp.ClientError as err:
-            raise GametoolsError(f"{path}: {type(err).__name__} {err}".strip()) from err
+            raise GametoolsError(f"{path}: {fehlertext(err)}") from err
         except ValueError as err:
             # Antwort ist kein JSON, z. B. "Internal Server Error" als Text.
             raise GametoolsError(f"{path}: Antwort ist kein JSON") from err

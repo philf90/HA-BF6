@@ -250,13 +250,7 @@
   "services": {
     "refresh": {
       "name": "Aktualisieren",
-      "description": "Fragt die gametools API sofort ab. Antworten werden 10 Minuten zwischengespeichert, die Werte ändern sich deshalb nicht immer sofort.",
-      "fields": {
-        "device_id": {
-          "name": "Geräte",
-          "description": "Spieler oder BF6-Spielwelt; leer heißt alle."
-        }
-      }
+      "description": "Fragt die gametools API sofort ab. Antworten werden 10 Minuten zwischengespeichert, die Werte ändern sich deshalb nicht immer sofort. Ohne Ziel alle Spieler und die Spielwelt."
     },
     "get_player": {
       "name": "Spieler nachschlagen",

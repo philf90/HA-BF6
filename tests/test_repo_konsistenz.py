@@ -75,3 +75,25 @@ def test_manifest_hacs_and_domain_match() -> None:
     assert f"custom_components/{const.DOMAIN}/manifest.json" in release
     script = (ROOT / ".github" / "scripts" / "pruefe_pr.py").read_text()
     assert f'"custom_components/{const.DOMAIN}/manifest.json"' in script
+
+
+_USES = re.compile(r"^\s*-?\s*uses:\s*(\S+)(.*)$", re.MULTILINE)
+
+
+def test_actions_pinned_to_commits() -> None:
+    """B18: Jede Action auf einen Commit gepinnt, mit Version als Kommentar
+    (seit 0.6.14); Dependabot haelt sie aktuell."""
+    gefunden = 0
+    for wf in (ROOT / ".github" / "workflows").glob("*.yml"):
+        for action, rest in _USES.findall(wf.read_text(encoding="utf-8")):
+            gefunden += 1
+            assert re.fullmatch(r"[\w./-]+@[0-9a-f]{40}", action), (wf.name, action)
+            assert rest.strip().startswith("# "), (wf.name, action)
+    assert gefunden >= 10
+    dependabot = (ROOT / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+    assert "package-ecosystem: github-actions" in dependabot
+
+
+def test_single_config_entry() -> None:
+    """B14: nur ein Haupteintrag, deklarativ im Manifest."""
+    assert MANIFEST["single_config_entry"] is True

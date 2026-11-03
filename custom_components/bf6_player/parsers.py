@@ -89,6 +89,26 @@ def unsafe_char(char: str) -> bool:
     return unicodedata.category(char) == "Cc" or char in _BIDI
 
 
+# Zeichen mit Bedeutung in Markdown. Das Frontend zeigt Beschreibungen als
+# Markdown (marked, danach filterXSS); ein Name wie "[x](https://...)" wuerde
+# sonst zum Link.
+_MARKDOWN = re.compile(r"([\\`*_{}\[\]()#+\-.!|<>~])")
+
+
+def markdown_text(text: str) -> str:
+    """Text fuer einen Platzhalter in einer Beschreibung, ohne Markdown-Wirkung."""
+    return _MARKDOWN.sub(r"\\\1", text)
+
+
+def valid_name(name: str) -> bool:
+    """Eingegebener Name: nicht leer, hoechstens NAME_MAX Zeichen, keine
+    Steuer- oder Richtungszeichen. Sonderzeichen sind erlaubt; die Abfrage
+    kodiert sie (aiohttp/yarl), es gibt keinen anderen Weg des Namens nach
+    aussen.
+    """
+    return 0 < len(name) <= NAME_MAX and not any(map(unsafe_char, name))
+
+
 def clean_name(value: Any) -> str | None:
     """Name aus einer API-Antwort fuer Titel und Geraetenamen.
 

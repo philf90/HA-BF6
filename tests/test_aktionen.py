@@ -1,6 +1,9 @@
 """Tests fuer die Aktionen bf6_player.refresh und bf6_player.get_player (0.5.0)."""
 
+from pathlib import Path
+
 import pytest
+import yaml
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
@@ -8,6 +11,7 @@ from custom_components.bf6_player.const import DOMAIN
 
 from .conftest import SEARCH, STATS, device_of, main_entry, player_subentry
 
+SERVICES = Path(__file__).parents[1] / "custom_components" / DOMAIN / "services.yaml"
 BASE = "https://api.gametools.network"
 STATS_URL = f"{BASE}/bf6/stats/"
 SEARCH_URL = f"{BASE}/bf6/player/"
@@ -109,3 +113,35 @@ async def test_get_player_api_error(hass: HomeAssistant, aioclient_mock):
             blocking=True,
             return_response=True,
         )
+
+
+async def test_refresh_with_target(hass: HomeAssistant, aioclient_mock):
+    """B22: Zielauswahl wie bei anderen Aktionen (target statt Feld)."""
+    aioclient_mock.get(STATS_URL, json=STATS)
+    await _setup(hass)
+    device = device_of(hass, "1000000002-kills")
+    await hass.services.async_call(
+        DOMAIN, "refresh", target={"device_id": device.id}, blocking=True
+    )
+    queries = [
+        c[1].query["playerid"]
+        for c in aioclient_mock.mock_calls
+        if str(c[1]).startswith(STATS_URL)
+    ]
+    assert queries[2:] == ["1000000002"]
+
+
+def test_refresh_offers_target_not_field() -> None:
+    services = yaml.safe_load(SERVICES.read_text(encoding="utf-8"))
+    assert services["refresh"]["target"] == {"device": {"integration": DOMAIN}}
+    assert "fields" not in services["refresh"]
+
+
+def test_name_check_lives_in_parsers() -> None:
+    """B15: Aktion und Dialog nutzen dieselbe Pruefung aus parsers.py, ohne
+    verzoegerten Import aus config_flow."""
+    from custom_components.bf6_player import config_flow, parsers, services
+
+    assert services.valid_name is parsers.valid_name
+    assert config_flow.valid_name is parsers.valid_name
+    assert "from .config_flow" not in Path(services.__file__).read_text()
