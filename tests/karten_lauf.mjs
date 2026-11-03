@@ -11,7 +11,10 @@
 const gezeigt = new Map();
 globalThis.HTMLElement = class {
   attachShadow() {
-    this.shadowRoot = { innerHTML: "" };
+    // Listener nur gezaehlt (seit 0.8.1, Wertanzeige der Verlaufskarte);
+    // ausgeloest werden sie im Browser-Test, nicht hier
+    const listener = [];
+    this.shadowRoot = { innerHTML: "", listener, addEventListener: (typ) => listener.push(typ) };
     return this.shadowRoot;
   }
 };
@@ -180,5 +183,23 @@ const ohneKills = { ...entities() };
 delete ohneKills["sensor.spieler_kills"];
 ergebnis.index.spieler_ohne_kills_sensor = C.spieler({ ...basisHass, entities: ohneKills }).length;
 ergebnis.index.ohne_entities = C.spieler({}).length;
+
+// Verlaufskarte mit Langzeitstatistik (seit 0.8.1): Werte wie live am
+// 03.11.2026. K/D-Tagesmittel 1,5040 und 1,5006 (beide als 1,50 angezeigt),
+// Kills pro Tag 162 und 21.
+const TAG = 86400000;
+const tagStart = (zurueck) => new Date(new Date().setHours(0, 0, 0, 0) - zurueck * TAG).getTime();
+const STATISTIK = {
+  "sensor.spieler_kd": [{ start: tagStart(1), mean: 1.5040486977675347 }, { start: tagStart(0), mean: 1.5006238996025463 }],
+  "sensor.spieler_kills": [{ start: tagStart(1), change: 162 }, { start: tagStart(0), change: 21 }],
+};
+const verlaufHass = { ...hassMit("Testspieler", 7200), callWS: async (m) => ({ [m.statistic_ids[0]]: STATISTIK[m.statistic_ids[0]] }) };
+ergebnis.verlauf = {};
+for (const metric of ["kd", "kills"]) {
+  const karte = zeichnen("bf6-history-card", { metric, period: "day", days: 30 }, verlaufHass);
+  await new Promise((fertig) => setTimeout(fertig, 0));
+  await new Promise((fertig) => setTimeout(fertig, 0));
+  ergebnis.verlauf[metric] = { html: karte.shadowRoot.innerHTML, listener: karte.shadowRoot.listener };
+}
 
 process.stdout.write(JSON.stringify(ergebnis));

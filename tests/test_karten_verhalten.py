@@ -13,6 +13,7 @@ schlaegt der Test fehl, damit er dort nie still ausfaellt.
 
 import json
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -148,3 +149,39 @@ def test_no_badge_without_image(ergebnis) -> None:
     for fall in ("ohne_bild", "fremd", "pfad"):
         assert "<img" not in ergebnis["kopf"][fall], fall
         assert "<ha-icon" in ergebnis["kopf"][fall], fall
+
+
+# --- Verlaufskarte: Skala und Wertanzeige (0.8.1) ----------------------------
+
+
+def _linie(html: str) -> list[float]:
+    """y-Werte der Linie (Pfad aus M/L/H mit x,y)."""
+    pfad = re.search(r'class="linie"[^>]* d="([^"]+)"', html).group(1)
+    return [float(y) for y in re.findall(r"[ML][\d.]+,([\d.]+)", pfad)]
+
+
+def test_history_line_not_stretched(ergebnis) -> None:
+    """Live 03.11.2026: K/D 1,5040 und 1,5006 fielen ueber die volle Hoehe
+    (120), obwohl beide als 1,50 angezeigt wurden."""
+    html = ergebnis["verlauf"]["kd"]["html"]
+    ys = _linie(html)
+    assert len(ys) == 2
+    assert abs(ys[0] - ys[1]) < 6
+    assert '<span class="skala oben">1,55</span>' in html
+    assert '<span class="skala unten">1,45</span>' in html
+
+
+def test_history_values_visible(ergebnis) -> None:
+    """Bis 0.8.0 standen Werte nur im Tooltip des Browsers (SVG-Titel)."""
+    html = ergebnis["verlauf"]["kills"]["html"]
+    assert '<span class="skala oben">162</span>' in html
+    assert '<span class="skala unten">0</span>' in html
+    assert re.search(r'data-info="\d\d\.\d\d\.: 162"', html)
+    assert re.search(r'data-info="\d\d\.\d\d\.: 21"', html)
+    assert '<span class="anzeige" data-standard="Summe 183">Summe 183</span>' in html
+    # Maus und Beruehrung
+    assert set(ergebnis["verlauf"]["kills"]["listener"]) == {
+        "pointerover",
+        "pointerdown",
+        "pointerout",
+    }

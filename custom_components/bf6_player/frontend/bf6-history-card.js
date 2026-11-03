@@ -12,9 +12,15 @@
  * Home Assistant (recorder/statistics_during_period). Quoten (measurement)
  * als Linie des Mittelwerts je Zeitraum, Zaehler (total_increasing) als
  * Balken des Zuwachses je Zeitraum (z. B. Kills pro Tag), jeder Wert an
- * seinem Platz auf der Zeitachse (seit 0.6.2). Werte erscheinen
- * beim Ueberfahren mit der Maus (SVG-Titel); darunter stehen Start, Ende,
- * kleinster und groesster Wert als Text.
+ * seinem Platz auf der Zeitachse (seit 0.6.2).
+ *
+ * Seit 0.8.1: Links stehen der oberste und der unterste Wert der Skala.
+ * Beim Ueberfahren mit der Maus oder Antippen steht "Datum: Wert" unter dem
+ * Diagramm; bis 0.8.0 gab es den Wert nur im Tooltip des Browsers (SVG-Titel,
+ * auf Touch-Geraeten nie). Die Linie hat eine Mindestspanne von zehn
+ * Anzeigeschritten (K/D: 0,1): Live am 03.11.2026 lagen zwei Tagesmittel bei
+ * 1,5040 und 1,5006, und die Linie fiel ueber die volle Hoehe, obwohl beide
+ * als 1,50 angezeigt wurden.
  */
 
 const C = await import(new URL(`bf6-common.js${new URL(import.meta.url).search}`, import.meta.url));
@@ -119,7 +125,14 @@ class Bf6HistoryCard extends C.Bf6Card {
   }
 
   static STYLE = `
+    .flaeche { position: relative; }
     .diagramm { display: block; width: 100%; height: 120px; }
+    .skala { position: absolute; left: 0; font-size: 11px; line-height: 1; color: ${FARBEN.sek}; font-variant-numeric: tabular-nums; pointer-events: none; }
+    .skala.oben { top: 0; }
+    .skala.unten { bottom: 2px; }
+    .diagramm .gewaehlt.balken { fill: ${FARBEN.text}; }
+    .diagramm .treffer.gewaehlt { fill: color-mix(in srgb, ${FARBEN.akzent} 22%, transparent); }
+    .anzeige { color: ${FARBEN.text}; }
     .diagramm .linie { fill: none; stroke: ${FARBEN.akzent}; stroke-width: 2px; stroke-linejoin: round; stroke-linecap: round; }
     .diagramm .balken { fill: ${FARBEN.akzent}; }
     .diagramm .treffer { fill: transparent; }
@@ -127,6 +140,46 @@ class Bf6HistoryCard extends C.Bf6Card {
     .diagramm .gitter { stroke: ${FARBEN.rand}; stroke-width: 1px; }
     .achse { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: ${FARBEN.sek}; font-variant-numeric: tabular-nums; }
   `;
+
+  setConfig(config) {
+    super.setConfig(config);
+    if (!this._wertanzeige) {
+      // Am Schatten-DOM, nicht an den Elementen: Diese entstehen bei jedem
+      // Zeichnen neu, die Listener bleiben.
+      this._wertanzeige = true;
+      this.shadowRoot.addEventListener("pointerover", (ev) => this._zeigen(ev, ev.pointerType !== "mouse"));
+      this.shadowRoot.addEventListener("pointerdown", (ev) => this._zeigen(ev, true));
+      this.shadowRoot.addEventListener("pointerout", (ev) => {
+        // Maus verlaesst das Diagramm: wieder die Zusammenfassung. Bei
+        // Beruehrung bleibt der angetippte Wert stehen.
+        if (ev.pointerType === "mouse" && !ev.relatedTarget?.closest?.(".diagramm")) {
+          this._zeigen(ev, false, true);
+        }
+      });
+    }
+  }
+
+  // Wert unter dem Diagramm zeigen; ohne Treffer bzw. beim Verlassen die
+  // Zusammenfassung
+  _zeigen(ev, halten, zurueck = false) {
+    const anzeige = this.shadowRoot?.querySelector(".anzeige");
+    if (!anzeige) {
+      return;
+    }
+    const ziel = zurueck ? null : ev.target?.closest?.("[data-info]");
+    if (!ziel && !zurueck && !halten) {
+      return;
+    }
+    anzeige.textContent = ziel ? ziel.dataset.info : anzeige.dataset.standard;
+    for (const el of this.shadowRoot.querySelectorAll(".gewaehlt")) {
+      el.classList.remove("gewaehlt");
+    }
+    if (ziel) {
+      for (const el of this.shadowRoot.querySelectorAll(`[data-i="${ziel.dataset.i}"]`)) {
+        el.classList.add("gewaehlt");
+      }
+    }
+  }
 
   _einstellungen() {
     const metric = WERTE[this._config.metric] ? this._config.metric : "kd";
@@ -211,26 +264,38 @@ class Bf6HistoryCard extends C.Bf6Card {
     const plaetze = Math.max(Math.ceil((e.days * TAG) / laenge), ...punkte.map((p) => zurueck(p.t) + 1));
     const breite = B / plaetze;
     const links = (p) => (plaetze - 1 - zurueck(p.t)) * breite;
-    const titel = (p) => `<title>${esc(`${datum(p.t)}: ${text(p.v)}`)}</title>`;
-    const treffer = (p) => `<rect class="treffer" x="${links(p).toFixed(2)}" y="0" width="${breite.toFixed(2)}" height="${H}">${titel(p)}</rect>`;
+    const info = (p) => `${datum(p.t)}: ${text(p.v)}`;
+    const titel = (p) => `<title>${esc(info(p))}</title>`;
+    // data-i verbindet Trefferflaeche und Balken, data-info ist der Text der
+    // Wertanzeige (beides von esc(), die Anzeige setzt ihn als textContent)
+    const merkmale = (p, i) => `data-i="${i}" data-info="${esc(info(p))}"`;
+    const treffer = (p, i) =>
+      `<rect class="treffer" ${merkmale(p, i)} x="${links(p).toFixed(2)}" y="0" width="${breite.toFixed(2)}" height="${H}">${titel(p)}</rect>`;
     let marken;
+    let skala;
     if (e.art === "change") {
       // Balken ab der Nulllinie, 2 Einheiten Abstand, oben bis 4 gerundet
       const hoch = Math.max(max, 0) || 1;
       const balken = Math.max(1, breite - 2);
       marken = punkte
-        .map((p) => {
+        .map((p, i) => {
           const h = Math.max(0, (p.v / hoch) * (H - rand));
           const r = Math.min(4, balken / 2, h);
-          return `${treffer(p)}${h > 0 ? `<path class="balken" d="${this._balken(links(p) + (breite - balken) / 2, H - h, balken, h, r)}">${titel(p)}</path>` : ""}`;
+          return `${treffer(p, i)}${h > 0 ? `<path class="balken" ${merkmale(p, i)} d="${this._balken(links(p) + (breite - balken) / 2, H - h, balken, h, r)}">${titel(p)}</path>` : ""}`;
         })
         .join("");
+      skala = [hoch, 0];
     } else {
       // Linie durch die Mitte der Plaetze; Luecken unterbrechen sie, ein
-      // einzelner Wert ist ein kurzer Strich ueber seinen Platz. Gleiche
-      // Werte liegen in der Mitte der Hoehe.
-      const spanne = max - min;
-      const y = (v) => (spanne ? H - rand - ((v - min) / spanne) * (H - 2 * rand) : H / 2).toFixed(2);
+      // einzelner Wert ist ein kurzer Strich ueber seinen Platz. Die Skala
+      // umfasst mindestens zehn Anzeigeschritte um die Mitte der Werte:
+      // Unterschiede unter der angezeigten Genauigkeit wirken flach, statt
+      // auf die volle Hoehe gestreckt zu werden.
+      const mindest = 10 * 10 ** -stellen;
+      const mitte = (min + max) / 2;
+      const spanne = Math.max(max - min, mindest);
+      const unten = mitte - spanne / 2;
+      const y = (v) => (H - rand - ((v - unten) / spanne) * (H - 2 * rand)).toFixed(2);
       const f = (n) => n.toFixed(2);
       const sortiert = [...punkte].sort((a, b) => a.t - b.t);
       const laeufe = [];
@@ -251,18 +316,23 @@ class Bf6HistoryCard extends C.Bf6Card {
         )
         .join("");
       marken = `<path class="linie" vector-effect="non-scaling-stroke" d="${d}"></path>${punkte.map(treffer).join("")}`;
+      skala = [unten + spanne, unten];
     }
     const zusammen =
       e.art === "change"
         ? `${this._t("sum")} ${text(werte.reduce((a, b) => a + b, 0))}`
         : `${this._t("min")} ${text(min)} · ${this._t("max")} ${text(max)}`;
     return `
-      <svg class="diagramm" viewBox="0 0 ${B} ${H}" preserveAspectRatio="none" role="img" aria-label="${esc(`${this._t(e.metric)}: ${zusammen}`)}">
-        <line class="gitter" x1="0" x2="${B}" y1="${H - 0.5}" y2="${H - 0.5}" vector-effect="non-scaling-stroke"></line>
-        ${marken}
-      </svg>
+      <div class="flaeche">
+        <svg class="diagramm" viewBox="0 0 ${B} ${H}" preserveAspectRatio="none" role="img" aria-label="${esc(`${this._t(e.metric)}: ${zusammen}`)}">
+          <line class="gitter" x1="0" x2="${B}" y1="${H - 0.5}" y2="${H - 0.5}" vector-effect="non-scaling-stroke"></line>
+          ${marken}
+        </svg>
+        <span class="skala oben">${esc(text(skala[0]))}</span>
+        <span class="skala unten">${esc(text(skala[1]))}</span>
+      </div>
       <div class="achse"><span>${esc(datum(this._periodenStart(e.period, plaetze - 1)))}</span><span>${esc(datum(jetzt))}</span></div>
-      <div class="leg"><span>${esc(zusammen)}</span><span>${esc(`${fmt(e.days, lang)}\u00a0${this._t("days")}`)}</span></div>`;
+      <div class="leg"><span class="anzeige" data-standard="${esc(zusammen)}">${esc(zusammen)}</span><span>${esc(`${fmt(e.days, lang)}\u00a0${this._t("days")}`)}</span></div>`;
   }
 
   // Beginn des Zeitraums, der zurueck Zeitraeume vor dem laufenden liegt, in
