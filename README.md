@@ -11,9 +11,9 @@ Home-Assistant-Integration für Spielerstatistiken aus Battlefield 6: K/D,
 Winrate, Waffen, Fahrzeuge, Klassen, Karten, Modi und Rang als Sensoren, dazu
 Saison und Portal-Server. Die Daten kommen aus der Community-API
 [api.gametools.network](https://api.gametools.network/docs), nicht von EA.
-Version 0.6.12.
+Version 0.6.13.
 
-> **Stand:** Version 0.6.12: Jeder Spieler ist ein Gerät mit 20 Sensoren,
+> **Stand:** Version 0.6.13: Jeder Spieler ist ein Gerät mit 20 Sensoren,
 > Rang-Abzeichen und den Ereignissen „Match beendet“ und „Rang gestiegen“
 > (siehe [Entitäten je Spieler](#entitäten-je-spieler)); dazu das Gerät
 > „BF6-Spielwelt“, Aktionen, Optionen, Diagnose, Reparaturhinweis und acht
@@ -97,8 +97,11 @@ ist kein Produkt von EA, DICE oder Community Network. Fragen zur API:
   weil Namen nicht eindeutig sind. Jeder Spieler ist ein eigenes Gerät
   (seit 0.4.0, Hersteller „Electronic Arts“, Modell „Battlefield 6 ·
   Plattform“) mit eigener Abfrage. Fällt die Abfrage eines Spielers aus,
-  sind nur seine Entitäten nicht verfügbar. Ein neuer oder gelöschter
-  Spieler lädt den Eintrag neu, Umbenennen nicht.
+  sind nur seine Entitäten nicht verfügbar. Ein neuer Spieler bekommt seit
+  0.6.13 nur seine eigene Abfrage und seine Entitäten, ein gelöschter wird
+  gestoppt; die übrigen Spieler und die Spielwelt laufen ohne Neuladen
+  weiter (vorher lud jeder neue oder gelöschte Spieler den ganzen Eintrag
+  neu). Neu geladen wird nur noch bei geänderten Optionen.
 - **Plattform-Symbole** (seit 0.4.0): Home Assistant bringt MDI 7.4.47 mit;
   daraus `mdi:steam`, `mdi:sony-playstation`, `mdi:microsoft-xbox` und
   `mdi:microsoft-windows`. Für EA app und Epic Games gibt es dort kein
@@ -159,10 +162,20 @@ Die API kennt keine einzelnen Matches. „Match beendet“ entsteht, wenn
 `seconds_played`, dazu `kd` (Kills ÷ Tode der neuen Matches) und `result`
 (`win` oder `loss`, nur bei genau einem neuen Match, sonst leer). Liegen
 mehrere Matches zwischen zwei Abfragen, kommt ein Ereignis über alle. „Rang
-gestiegen“ meldet `previous_rank`, `rank` und `rank_name`.
+gestiegen“ meldet `previous_rank`, `rank` und `rank_name`. Beide Ereignisse
+nennen seit 0.6.13 in `since` die Zeit des verglichenen Stands.
 
-- Die erste Abfrage nach dem Start setzt nur den Ausgangsstand: Matches
-  während eines Neustarts oder Neuladens lösen kein Ereignis aus.
+- **Über Neustarts hinweg** (seit 0.6.13): Den letzten Stand der Zähler und
+  den Rang speichert die Integration je Spieler in
+  `.storage/bf6_player.<entry_id>` (nur Zahlen und die Zeit, keine Namen).
+  Die erste Abfrage nach einem Neustart vergleicht damit; Matches und
+  Rangaufstiege während des Neustarts lösen danach ein gemeinsames
+  Ereignis aus, `since` zeigt, seit wann. Vorher setzte die erste Abfrage
+  nur den Ausgangsstand. Ein neu hinzugefügter Spieler hat noch keinen
+  Stand; seine erste Abfrage setzt ihn. Liegt die erste Abfrage nach dem
+  Start unter dem gespeicherten Stand, sind die Entitäten des Spielers
+  einmal nicht verfügbar, bis die nächste Abfrage den Rückgang bestätigt
+  (wie im Betrieb seit 0.6.9, siehe [Entitäten je Spieler](#entitäten-je-spieler)).
 - Sinkt ein Zähler (Korrektur der API), gibt es kein Ereignis.
 - Fehlt ein Zähler außer `matches` in der Antwort, kommt das Ereignis
   trotzdem, der fehlende Wert ist leer (`None`), und das Log nennt ihn
@@ -416,8 +429,21 @@ Automatische Tests laufen gegen zwei Versionen von Home Assistant: die
 Mindestversion 2026.2.3 (`pytest-homeassistant-custom-component` 0.13.316,
 Python 3.13) und seit 0.6.9 die aktuelle 2026.10.4 (0.13.375, Python 3.14).
 
-- **0.6.x:** 293 automatische Tests, grün gegen Home Assistant 2026.2.3 und
-  2026.10.4. 0.6.12: Rang-Abzeichen der Bild-Entität vollständig geladen.
+- **0.6.x:** 305 automatische Tests, grün gegen Home Assistant 2026.2.3 und
+  2026.10.4. 0.6.13: Spieler kommen und gehen ohne Neuladen (Dispatcher an
+  die drei Plattformen, eigener Coordinator, gestoppt beim Löschen);
+  gespeicherte Vergleichsbasis für die Ereignisse (`Store`, 30 s
+  Verzögerung beim Schreiben, sofort beim Entladen, damit ein Neuladen kein
+  Match doppelt meldet; Datei beim Löschen des Eintrags entfernt);
+  Ereignis-Entitäten lösen auch Ereignisse einer Abfrage aus, die vor ihrem
+  Anlegen fertig war. Gegenprobe: Spieler wieder per Neuladen (3 Tests
+  schlagen fehl), Stand gelöschter Spieler behalten (1), keine
+  Vergleichsbasis (5), Ereignis-Entität wie 0.6.12 (1), Rang nicht aus dem
+  gespeicherten Stand (1), Rückgang nur gegen die letzte Abfrage (1), Datei
+  beim Löschen behalten (1), ohne Schreiben beim Entladen (2: Match doppelt
+  nach Neuladen, Datei nach dem Löschen wieder da). Eine erste Fassung der vorletzten Gegenprobe
+  schlug aus dem falschen Grund fehl (Ausnahme statt Übernahme) und wurde
+  ersetzt. 0.6.12: Rang-Abzeichen der Bild-Entität vollständig geladen.
   0.6.11 las mit `content.read(n)` nur den ersten Teil der Antwort (gegen
   den CDN 13.690 bis 23.829 von 258.834 Bytes); der Entitätsdialog blieb
   leer, ohne Warnung, und das abgeschnittene Bild blieb zwischengespeichert.

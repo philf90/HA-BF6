@@ -223,9 +223,10 @@ async def test_profile_only_hourly(
     assert (calls(STATS_URL), calls(PROFILE_URL)) == (5, 2)
 
 
-async def test_new_player_reloads_rename_does_not(
+async def test_new_player_and_rename_without_reload(
     hass: HomeAssistant, aioclient_mock: AiohttpClientMocker
 ):
+    """Seit 0.6.13 laedt auch ein neuer Spieler den Eintrag nicht neu (B9)."""
     _mock(aioclient_mock)
     entry = await _setup(hass)
     loaded = entry.runtime_data
@@ -240,7 +241,7 @@ async def test_new_player_reloads_rename_does_not(
         entry, ConfigSubentry(**player_subentry(1000000002, 2000000002, "steam"))
     )
     await hass.async_block_till_done()
-    assert entry.runtime_data is not loaded
+    assert entry.runtime_data is loaded
     assert _state(hass, "kills", 1000000002).state == "1000"
 
 

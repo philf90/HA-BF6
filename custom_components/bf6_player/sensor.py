@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from functools import partial
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -25,7 +24,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from . import Bf6ConfigEntry
 from .const import CONF_PLATFORM, PLATFORM_NAMES
 from .coordinator import Bf6PlayerCoordinator, Bf6WorldCoordinator
-from .entity import Bf6PlayerEntity, Bf6WorldEntity
+from .entity import Bf6PlayerEntity, Bf6WorldEntity, async_add_player_entities
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -154,13 +153,15 @@ async def async_setup_entry(
     entry: Bf6ConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    for subentry_id, coordinator in entry.runtime_data.coordinators.items():
-        add = partial(async_add_entities, config_subentry_id=subentry_id)
-        entities: list[SensorEntity] = [
-            Bf6Sensor(coordinator, description) for description in SENSORS
-        ]
-        entities.append(Bf6PlatformSensor(coordinator))
-        add(entities)
+    async_add_player_entities(
+        hass,
+        entry,
+        async_add_entities,
+        lambda coordinator: [
+            *(Bf6Sensor(coordinator, description) for description in SENSORS),
+            Bf6PlatformSensor(coordinator),
+        ],
+    )
     world = entry.runtime_data.world
     if world is not None:
         async_add_entities(Bf6WorldSensor(world, d) for d in WORLD_SENSORS)

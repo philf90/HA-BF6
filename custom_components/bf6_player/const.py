@@ -116,3 +116,21 @@ PLATFORM_ICONS = {
     "ea": "mdi:gamepad-variant",
     "epic": "mdi:gamepad-variant",
 }
+
+# Zaehler, deren Zuwachs ein Match beschreibt (Schluessel aus player_stats); auch
+# Inhalt der gespeicherten Vergleichsbasis (baseline.py)
+MATCH_COUNTERS = (
+    "matches",
+    "wins",
+    "losses",
+    "kills",
+    "deaths",
+    "assists",
+    "revives",
+    "xp",
+    "seconds_played",
+)
+
+# Signal: neuer Spieler ohne Neuladen des Eintrags (seit 0.6.13);
+# Platzhalter: entry_id
+SIGNAL_NEW_PLAYER = f"{DOMAIN}_new_player_{{}}"
