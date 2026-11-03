@@ -21,6 +21,7 @@ from homeassistant.util import dt as dt_util
 
 from . import parsers
 from .api import GametoolsClient, GametoolsError, GametoolsRateLimited, PlayerRef
+from .baseline import Bf6Baseline
 from .const import (
     CONF_NUCLEUS_ID,
     CONF_PERSONA_ID,
@@ -30,6 +31,7 @@ from .const import (
     DOMAIN,
     EVENT_MATCH_FINISHED,
     EVENT_RANK_UP,
+    MATCH_COUNTERS,
     PROFILE_INTERVAL_MINUTES,
     RETRY_AFTER_MAX_SECONDS,
     SEASON_INTERVAL_MINUTES,
@@ -38,19 +40,6 @@ from .const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
-
-# Zaehler, deren Zuwachs ein Match beschreibt (Schluessel aus player_stats)
-MATCH_COUNTERS = (
-    "matches",
-    "wins",
-    "losses",
-    "kills",
-    "deaths",
-    "assists",
-    "revives",
-    "xp",
-    "seconds_played",
-)
 
 
 # Zweite Verteidigungslinie hinter parsers.py: Faende die Auswertung doch einen
@@ -179,6 +168,7 @@ class Bf6PlayerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         entry: ConfigEntry,
         client: GametoolsClient,
         subentry: ConfigSubentry,
+        baseline: Bf6Baseline | None = None,
     ) -> None:
         # Im Log steht die Persona-ID, nicht der Name (README, "Sicherheit").
         super().__init__(
@@ -207,6 +197,12 @@ class Bf6PlayerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._drop_pending = False
         # Zaehler, deren Fehlen im Ereignis schon gemeldet wurde
         self._missing_reported: set[str] = set()
+        # Gespeicherte Vergleichsbasis (seit 0.6.13): gilt, bis die erste
+        # Abfrage nach dem Start gelingt; danach vergleicht self.data.
+        self._baseline = baseline
+        self._stored = baseline.get(subentry.subentry_id) if baseline else None
+        # Zeit der letzten uebernommenen Abfrage, fuer "since" im Ereignis
+        self._last_at: datetime | None = None
 
     async def _async_update_data(self) -> dict[str, Any]:
         try:
@@ -220,18 +216,41 @@ class Bf6PlayerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             raise UpdateFailed(translation_domain=DOMAIN, translation_key="no_stats")
         ir.async_delete_issue(self.hass, DOMAIN, issue_id(self.subentry.subentry_id))
         stats = self._hold_drop(stats)
+        previous_stats, previous_rank, since = self._previous()
         previous_profile = self._profile
+        if previous_profile is None and previous_rank is not None:
+            previous_profile = {"rank": previous_rank}
         await self._update_profile()
         self.events = []
         self.events_serial += 1
-        if self.data is not None and (match := match_event(self.data["stats"], stats)):
-            self.events.append((EVENT_MATCH_FINISHED, match))
+        since_text = since.isoformat() if since else None
+        if previous_stats is not None and (match := match_event(previous_stats, stats)):
+            self.events.append((EVENT_MATCH_FINISHED, {**match, "since": since_text}))
             self._report_missing(match)
-        if self.data is not None and (
+        if (self.data is not None or self._stored is not None) and (
             rank := rank_event(previous_profile, self._profile)
         ):
-            self.events.append((EVENT_RANK_UP, rank))
+            self.events.append((EVENT_RANK_UP, {**rank, "since": since_text}))
+        self._last_at = dt_util.utcnow()
+        if self._baseline is not None:
+            # Ohne Profil seit dem Start (Abruf gescheitert) bleibt der
+            # gespeicherte Rang
+            rank_now = (self._profile or {}).get("rank")
+            self._baseline.set(
+                self.subentry.subentry_id,
+                stats,
+                rank_now if rank_now is not None else (self._stored or {}).get("rank"),
+                self._last_at,
+            )
         return {"stats": stats, "profile": self._profile}
+
+    def _previous(self) -> tuple[dict[str, Any] | None, int | None, datetime | None]:
+        """Vergleichsstand: letzte Abfrage, sonst der gespeicherte Stand."""
+        if self.data is not None:
+            return self.data["stats"], None, self._last_at
+        if self._stored is not None:
+            return self._stored["stats"], self._stored["rank"], self._stored["at"]
+        return None, None, None
 
     def _report_missing(self, match: dict[str, Any]) -> None:
         """Fehlende Zaehler im Ereignis einmal je Zaehler melden (seit 0.6.11)."""
@@ -257,7 +276,8 @@ class Bf6PlayerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         Sensoren noch Langzeitstatistik. Ein echter Ruecksetzer gilt eine
         Abfrage spaeter.
         """
-        if self.data is None or not (drops := counter_drops(self.data["stats"], stats)):
+        previous, _, _ = self._previous()
+        if previous is None or not (drops := counter_drops(previous, stats)):
             self._drop_pending = False
             return stats
         persona_id = self.subentry.data[CONF_PERSONA_ID]
@@ -276,6 +296,18 @@ class Bf6PlayerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             persona_id,
             ", ".join(drops),
         )
+        if self.data is None:
+            # Erste Abfrage nach dem Start, Rueckgang gegenueber dem
+            # gespeicherten Stand (seit 0.6.13): Es gibt noch keine Statistik
+            # zum Behalten. Nicht verfuegbar statt eines Ausreissers, denn
+            # einen fehlenden Wert zaehlt die Langzeitstatistik nicht.
+            raise UpdateFailed(
+                translation_domain=DOMAIN,
+                translation_key="update_failed",
+                translation_placeholders={
+                    "error": "Zaehler unter dem gespeicherten Stand, Abfrage verworfen"
+                },
+            )
         return self.data["stats"]
 
     async def _update_profile(self) -> None:

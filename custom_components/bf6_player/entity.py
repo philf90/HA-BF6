@@ -2,11 +2,49 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable
+
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
+from homeassistant.helpers.dispatcher import async_dispatcher_connect
+from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import CONF_NAME, CONF_PERSONA_ID, CONF_PLATFORM, DOMAIN, PLATFORM_NAMES
+from .const import (
+    CONF_NAME,
+    CONF_PERSONA_ID,
+    CONF_PLATFORM,
+    DOMAIN,
+    PLATFORM_NAMES,
+    SIGNAL_NEW_PLAYER,
+)
 from .coordinator import Bf6PlayerCoordinator, Bf6WorldCoordinator
+
+
+@callback
+def async_add_player_entities(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    async_add_entities: AddConfigEntryEntitiesCallback,
+    entities_for: Callable[[Bf6PlayerCoordinator], Iterable[Entity]],
+) -> None:
+    """Entitaeten je Spieler anlegen, auch fuer spaeter hinzugefuegte.
+
+    Seit 0.6.13 laedt ein neuer Spieler nicht mehr den ganzen Eintrag neu;
+    __init__._async_entry_updated meldet ihn ueber SIGNAL_NEW_PLAYER.
+    """
+
+    @callback
+    def add(subentry_id: str, coordinator: Bf6PlayerCoordinator) -> None:
+        async_add_entities(entities_for(coordinator), config_subentry_id=subentry_id)
+
+    for subentry_id, coordinator in entry.runtime_data.coordinators.items():
+        add(subentry_id, coordinator)
+    entry.async_on_unload(
+        async_dispatcher_connect(hass, SIGNAL_NEW_PLAYER.format(entry.entry_id), add)
+    )
 
 
 class Bf6PlayerEntity(CoordinatorEntity[Bf6PlayerCoordinator]):

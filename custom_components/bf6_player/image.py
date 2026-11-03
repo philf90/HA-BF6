@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from functools import partial
 
 import aiohttp
 from homeassistant.components.image import ImageEntity
@@ -14,7 +13,7 @@ from homeassistant.util import dt as dt_util
 
 from . import Bf6ConfigEntry
 from .coordinator import Bf6PlayerCoordinator
-from .entity import Bf6PlayerEntity
+from .entity import Bf6PlayerEntity, async_add_player_entities
 from .parsers import image_url
 
 _LOGGER = logging.getLogger(__name__)
@@ -59,9 +58,12 @@ async def async_setup_entry(
     entry: Bf6ConfigEntry,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    for subentry_id, coordinator in entry.runtime_data.coordinators.items():
-        add = partial(async_add_entities, config_subentry_id=subentry_id)
-        add([Bf6RankImage(hass, coordinator)])
+    async_add_player_entities(
+        hass,
+        entry,
+        async_add_entities,
+        lambda coordinator: [Bf6RankImage(hass, coordinator)],
+    )
 
 
 class Bf6RankImage(Bf6PlayerEntity, ImageEntity):

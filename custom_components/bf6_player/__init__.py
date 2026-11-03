@@ -21,15 +21,18 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 
 from .api import GametoolsClient
+from .baseline import Bf6Baseline
 from .const import (
     CONF_NAME,
     CONF_PLATFORM,
     DOMAIN,
     FIRST_REFRESH_WAIT_SECONDS,
+    SIGNAL_NEW_PLAYER,
     SUBENTRY_PLAYER,
     player_title,
 )
@@ -65,11 +68,14 @@ class Bf6RuntimeData:
     """Laufzeitdaten des Haupteintrags."""
 
     client: GametoolsClient
+    # Gespeicherte Vergleichsbasis fuer die Ereignisse (seit 0.6.13)
+    baseline: Bf6Baseline
     world: Bf6WorldCoordinator | None = None
     # subentry_id -> Coordinator des Spielers
     coordinators: dict[str, Bf6PlayerCoordinator] = field(default_factory=dict)
-    # Stand, mit dem dieser Start arbeitet (fuer _async_reload)
-    snapshot: tuple[Any, ...] = ()
+    # Optionen, mit denen dieser Start arbeitet; aendern sie sich, wird neu
+    # geladen (Takte). Spieler kommen und gehen ohne Neuladen (seit 0.6.13).
+    options: tuple[Any, ...] = ()
 
 
 type Bf6ConfigEntry = ConfigEntry[Bf6RuntimeData]
@@ -83,9 +89,8 @@ def _players(entry: ConfigEntry) -> frozenset[str]:
     )
 
 
-def _snapshot(entry: ConfigEntry) -> tuple[Any, ...]:
-    """Spieler und Optionen: Aendert sich eines davon, wird neu geladen."""
-    return (_players(entry), tuple(sorted(entry.options.items())))
+def _options(entry: ConfigEntry) -> tuple[Any, ...]:
+    return tuple(sorted(entry.options.items()))
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -127,21 +132,34 @@ async def async_setup_entry(hass: HomeAssistant, entry: Bf6ConfigEntry) -> bool:
     """
     _add_platform_to_titles(hass, entry)
     _remove_stale_issues(hass, entry)
-    runtime = Bf6RuntimeData(GametoolsClient(async_get_clientsession(hass)))
-    runtime.snapshot = _snapshot(entry)
+    baseline = Bf6Baseline(hass, entry.entry_id)
+    await baseline.async_load()
+    runtime = Bf6RuntimeData(GametoolsClient(async_get_clientsession(hass)), baseline)
+    runtime.options = _options(entry)
     runtime.world = Bf6WorldCoordinator(hass, entry, runtime.client)
     for subentry_id in _players(entry):
         runtime.coordinators[subentry_id] = Bf6PlayerCoordinator(
-            hass, entry, runtime.client, entry.subentries[subentry_id]
+            hass, entry, runtime.client, entry.subentries[subentry_id], baseline
         )
-    # Erste Abfragen als Hintergrund-Tasks des Eintrags (beim Entladen
-    # abgebrochen), darauf hoechstens FIRST_REFRESH_WAIT_SECONDS warten
-    # (seit 0.6.9). Das Limit gleichzeitiger Abfragen haelt der Client.
+    await _first_refresh(hass, entry, [runtime.world, *runtime.coordinators.values()])
+    entry.runtime_data = runtime
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
+    return True
+
+
+async def _first_refresh(
+    hass: HomeAssistant, entry: ConfigEntry, coordinators: list[Any]
+) -> None:
+    """Erste Abfragen als Hintergrund-Tasks des Eintrags (beim Entladen
+    abgebrochen), darauf hoechstens FIRST_REFRESH_WAIT_SECONDS warten (seit
+    0.6.9). Das Limit gleichzeitiger Abfragen haelt der Client.
+    """
     first = [
         entry.async_create_background_task(
             hass, coordinator.async_refresh(), f"{coordinator.name} first refresh"
         )
-        for coordinator in (runtime.world, *runtime.coordinators.values())
+        for coordinator in coordinators
     ]
     _, pending = await asyncio.wait(first, timeout=FIRST_REFRESH_WAIT_SECONDS)
     if pending:
@@ -152,28 +170,59 @@ async def async_setup_entry(hass: HomeAssistant, entry: Bf6ConfigEntry) -> bool:
             len(first),
             FIRST_REFRESH_WAIT_SECONDS,
         )
-    entry.runtime_data = runtime
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    # Spieler hinzugefuegt oder geloescht, Optionen geaendert: neu laden.
-    # Umbenennen nicht.
-    entry.async_on_unload(entry.add_update_listener(_async_reload))
-    return True
 
 
-async def _async_reload(hass: HomeAssistant, entry: Bf6ConfigEntry) -> None:
-    if _snapshot(entry) != entry.runtime_data.snapshot:
+async def _async_entry_updated(hass: HomeAssistant, entry: Bf6ConfigEntry) -> None:
+    """Optionen geaendert: neu laden. Spieler hinzugefuegt oder geloescht:
+    nur diesen Spieler anlegen bzw. stoppen (seit 0.6.13).
+
+    Bis 0.6.12 lud jeder neue oder geloeschte Spieler den ganzen Eintrag neu:
+    alle Spieler und die Spielwelt wurden erneut abgefragt, und die
+    Vergleichsbasis fuer die Ereignisse ging verloren (Review B9). Umbenennen
+    aendert nichts.
+    """
+    runtime = entry.runtime_data
+    if _options(entry) != runtime.options:
         hass.config_entries.async_schedule_reload(entry.entry_id)
+        return
+    players = _players(entry)
+    for subentry_id in set(runtime.coordinators) - players:
+        # Geraet und Entitaeten entfernt Home Assistant mit dem Untereintrag
+        coordinator = runtime.coordinators.pop(subentry_id)
+        await coordinator.async_shutdown()
+        runtime.baseline.remove(subentry_id)
+        ir.async_delete_issue(hass, DOMAIN, issue_id(subentry_id))
+    new = {
+        subentry_id: Bf6PlayerCoordinator(
+            hass, entry, runtime.client, entry.subentries[subentry_id], runtime.baseline
+        )
+        for subentry_id in players - set(runtime.coordinators)
+    }
+    if not new:
+        return
+    # Vor dem Warten eintragen: ein zweiter Aufruf legt sie nicht noch einmal an
+    runtime.coordinators.update(new)
+    await _first_refresh(hass, entry, list(new.values()))
+    for subentry_id, coordinator in new.items():
+        async_dispatcher_send(
+            hass, SIGNAL_NEW_PLAYER.format(entry.entry_id), subentry_id, coordinator
+        )
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: Bf6ConfigEntry) -> bool:
-    """Haupteintrag entladen."""
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    """Haupteintrag entladen; gespeicherte Vergleichsbasis sofort schreiben."""
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded:
+        await entry.runtime_data.baseline.async_flush()
+    return unloaded
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Eintrag geloescht: seine Reparaturhinweise mit."""
+    """Eintrag geloescht: seine Reparaturhinweise und die gespeicherte
+    Vergleichsbasis mit."""
     for subentry_id in entry.subentries:
         ir.async_delete_issue(hass, DOMAIN, issue_id(subentry_id))
+    await Bf6Baseline(hass, entry.entry_id).async_remove()
 
 
 def _remove_stale_issues(hass: HomeAssistant, entry: ConfigEntry) -> None:
