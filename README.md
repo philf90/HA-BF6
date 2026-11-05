@@ -38,23 +38,35 @@ Karten dem Nachtblau-Stil aus
 ## Voraussetzungen
 
 - **Home Assistant 2026.2.3 oder neuer**
-- **[HACS](https://hacs.xyz)** für die Installation per Klick (ohne HACS geht es
-  auch, siehe unten)
+- **Marketplace** (ab Home Assistant 2026.11 eingebaut, Einstellungen →
+  Marketplace) oder bis 2026.10 **[HACS](https://hacs.xyz)** für die
+  Installation per Klick (ohne beides geht es auch, siehe unten). Der
+  Marketplace braucht für Repositories, die nicht im Katalog stehen, eine
+  GitHub-Verbindung; er fragt beim Hinzufügen danach.
 - Kein API-Schlüssel: Die gametools API ist ohne Anmeldung erreichbar.
 
 ## Installation
 
-[![In HACS öffnen](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=philf90&repository=HA-BF6&category=integration)
+[![Im Marketplace bzw. in HACS öffnen](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=philf90&repository=HA-BF6&category=integration)
 [![Integration hinzufügen](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=bf6_player)
 
-1. **Integration herunterladen:** Erste Schaltfläche oben → HACS fragt, ob das
-   Repository hinzugefügt werden soll → **Hinzufügen** → **Herunterladen**.
-   Von Hand: HACS → ⋮ → **Benutzerdefinierte Repositories** →
-   `https://github.com/philf90/HA-BF6`, Typ „Integration“ → „BF6 Spieler“
-   herunterladen.
-   Ohne HACS: Ordner `custom_components/bf6_player` nach
-   `config/custom_components/` kopieren.
-2. **Home Assistant neu starten.**
+1. **Integration herunterladen**, je nach Home-Assistant-Version:
+   - **Ab 2026.11 (Marketplace):** Einstellungen → **Marketplace** → oben
+     rechts **Add from link** →
+     `https://github.com/philf90/HA-BF6` eingeben → **Add**. Danach
+     „BF6 Spieler“ in der Liste öffnen und installieren. Beim ersten
+     Hinzufügen verbindet der Marketplace GitHub: Er zeigt einen Code und
+     einen Link, dort den Code eingeben und die Verbindung bestätigen.
+   - **Bis 2026.10 (HACS):** Erste Schaltfläche oben → HACS fragt, ob das
+     Repository hinzugefügt werden soll → **Hinzufügen** → **Herunterladen**.
+     Von Hand: HACS → ⋮ → **Benutzerdefinierte Repositories** →
+     `https://github.com/philf90/HA-BF6`, Typ „Integration“ →
+     „BF6 Spieler“ herunterladen.
+   - **Von Hand:** Ordner `custom_components/bf6_player` nach
+     `config/custom_components/` kopieren.
+2. **Home Assistant neu starten** (mit HACS oder von Hand). Mit dem
+   Marketplace entfällt das bei der ersten Installation: Er lädt die
+   Integration sofort und öffnet ihre Einrichtung (Schritt 3).
 3. **Einrichten:** Zweite Schaltfläche oben, oder Einstellungen → Geräte & Dienste
    → Integration hinzufügen → „BF6 Spieler“ → **Absenden**. Es entsteht der
    Eintrag „gametools API“; einen zweiten lehnt der Dialog ab.
@@ -362,7 +374,8 @@ sort: win_rate
 Seit 0.7.0. Zwei Automations-Blueprints machen die Ereignisse ohne eigenes
 YAML nutzbar. Sie liegen im Repository unter
 [`blueprints/automation/bf6_player/`](blueprints/automation/bf6_player/);
-HACS installiert nur die Integration, die Blueprints kommen per Import:
+Marketplace und HACS installieren nur die Integration; Blueprints gehören
+nicht zum Marketplace und kommen per Import:
 
 | Blueprint | Import | Nachricht (Beispiel) | Eingaben |
 |---|---|---|---|
